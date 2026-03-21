@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #14252A;
+  --primary-light: #1a3a42;
+  --accent: #2196F3;
+  --accent-light: #e3f2fd;
+  --success: #4CAF50;
+  --warning: #FF9800;
+  --danger: #f44336;
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --text: #1a1a1a;
+  --text-secondary: #666;
+  --border: #e0e0e0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+}
+
+/* Smooth transitions for interactive elements */
+a, button, input, select, textarea {
+  transition: all 0.15s ease;
+}
+
+/* Modern card shadows */
+.shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.shadow-md {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Better focus states */
+input:focus, select:focus, textarea:focus {
+  box-shadow: 0 0 0 3px rgba(20, 37, 42, 0.12);
+}
+
+/* Table row hover */
+tbody tr {
+  transition: background-color 0.1s ease;
+}
+
+/* Pulsing animation for voice recording */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+.animate-pulse-ring {
+  animation: pulse-ring 1.5s infinite;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
