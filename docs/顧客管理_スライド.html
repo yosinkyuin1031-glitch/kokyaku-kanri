@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>顧客管理シート ── 5つの強み</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: #0f172a;
+    color: #1e293b;
+    overflow: hidden;
+  }
+
+  .slide {
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    padding: 60px 80px;
+    background: #ffffff;
+    position: relative;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .slide.active { display: flex; }
+
+  .page-num { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #94a3b8; font-weight: 500; }
+  .logo { position: absolute; top: 30px; left: 50px; font-size: 14px; font-weight: 700; color: #0ea5e9; letter-spacing: 1px; }
+
+  .slide-title {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%);
+    color: #fff; text-align: center; justify-content: center; align-items: center;
+  }
+  .slide-title .logo { color: rgba(255,255,255,0.6); }
+  .slide-title .page-num { color: rgba(255,255,255,0.4); }
+  .slide-title h1 { font-size: 48px; font-weight: 900; line-height: 1.4; margin-bottom: 20px; }
+  .slide-title .subtitle { font-size: 22px; font-weight: 500; opacity: 0.9; margin-bottom: 40px; }
+  .slide-title .price-badge { display: inline-block; background: #e9520e; color: #fff; padding: 12px 36px; border-radius: 50px; font-size: 20px; font-weight: 700; }
+
+  h2 { font-size: 36px; font-weight: 900; color: #0ea5e9; margin-bottom: 40px; line-height: 1.3; }
+  h2 .accent { color: #e9520e; }
+  h3 { font-size: 22px; font-weight: 700; color: #334155; margin-bottom: 12px; }
+  p, li { font-size: 20px; line-height: 1.8; color: #475569; }
+
+  .pain-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .pain-list li { background: #fef2f2; border-left: 4px solid #e9520e; padding: 18px 24px; border-radius: 8px; font-size: 18px; font-weight: 500; color: #1e293b; }
+
+  .category-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-bottom: 30px; }
+  .cat-card { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 16px; padding: 28px; text-align: center; }
+  .cat-card .cat-num { font-size: 14px; font-weight: 700; color: #94a3b8; margin-bottom: 8px; }
+  .cat-card h3 { font-size: 20px; margin-bottom: 10px; color: #1e293b; }
+  .cat-card .price { font-size: 22px; font-weight: 900; color: #e9520e; margin-bottom: 8px; }
+  .cat-card p { font-size: 15px; }
+
+  .slide-fourth {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    color: #fff; text-align: center; align-items: center;
+  }
+  .slide-fourth .logo { color: rgba(255,255,255,0.6); }
+  .slide-fourth .page-num { color: rgba(255,255,255,0.4); }
+  .slide-fourth h2 { color: #fff; font-size: 44px; margin-bottom: 24px; }
+  .slide-fourth .desc { font-size: 26px; color: rgba(255,255,255,0.9); margin-bottom: 40px; font-weight: 500; }
+  .slide-fourth .highlight-box { background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 16px; padding: 30px 50px; font-size: 28px; font-weight: 700; }
+
+  .strength-num { display: inline-block; background: #0ea5e9; color: #fff; width: 40px; height: 40px; border-radius: 50%; text-align: center; line-height: 40px; font-size: 18px; font-weight: 700; margin-right: 12px; vertical-align: middle; }
+
+  .content-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 20px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+  .content-table th { background: #0ea5e9; color: #fff; padding: 14px 20px; text-align: left; font-size: 16px; font-weight: 700; }
+  .content-table td { padding: 14px 20px; font-size: 16px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+  .content-table tr:nth-child(even) td { background: #f8fafc; }
+  .content-table tr:last-child td { border-bottom: none; }
+
+  .feature-list { list-style: none; margin-top: 16px; }
+  .feature-list li { padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 19px; display: flex; align-items: center; gap: 12px; }
+  .feature-list li:last-child { border-bottom: none; }
+  .check { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #dcfce7; color: #16a34a; border-radius: 50%; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+  .cross { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #fee2e2; color: #dc2626; border-radius: 50%; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+
+  .learn-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-top: 20px; }
+  .learn-card { background: #f0f9ff; border: 2px solid #7dd3fc; border-radius: 16px; padding: 28px; text-align: center; }
+  .learn-card .learn-icon { font-size: 36px; margin-bottom: 12px; }
+  .learn-card h3 { font-size: 18px; color: #0369a1; }
+  .learn-card p { font-size: 15px; margin-top: 10px; }
+
+  .price-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 20px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+  .price-table th { background: #0ea5e9; color: #fff; padding: 14px 20px; text-align: left; font-size: 16px; font-weight: 700; }
+  .price-table td { padding: 14px 20px; font-size: 16px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+  .price-table tr:nth-child(even) td { background: #f8fafc; }
+  .price-table tr:last-child td { border-bottom: none; }
+  .price-table tr.highlight td { background: #eff6ff; font-weight: 700; color: #0ea5e9; font-size: 18px; }
+
+  .flow-steps { display: flex; align-items: flex-start; gap: 16px; margin-top: 30px; }
+  .flow-step { flex: 1; text-align: center; position: relative; }
+  .flow-step .step-num { display: inline-flex; align-items: center; justify-content: center; width: 50px; height: 50px; background: #0ea5e9; color: #fff; border-radius: 50%; font-size: 22px; font-weight: 900; margin-bottom: 14px; }
+  .flow-step h3 { font-size: 16px; color: #1e293b; }
+  .flow-step p { font-size: 14px; margin-top: 6px; }
+  .flow-arrow { display: flex; align-items: center; padding-top: 12px; color: #0ea5e9; font-size: 24px; font-weight: 700; }
+
+  .note { margin-top: 20px; padding: 16px 24px; background: #f0f9ff; border-radius: 10px; font-size: 18px; font-weight: 700; color: #0369a1; text-align: center; }
+  .bottom-note { position: absolute; bottom: 60px; left: 80px; right: 80px; padding: 16px 24px; background: #eff6ff; border-radius: 10px; font-size: 17px; font-weight: 700; color: #0369a1; text-align: center; }
+
+  .nav { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 100; }
+  .nav button { background: #0ea5e9; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: background 0.2s; }
+  .nav button:hover { background: #0284c7; }
+</style>
+</head>
+<body>
+
+<!-- Slide 1: タイトル -->
+<div class="slide slide-title active" id="s1">
+  <div class="logo">顧客管理シート</div>
+  <h1>顧客管理シート<br>5つの強み</h1>
+  <p class="subtitle">治療院専用 経営分析CRM</p>
+  <span class="price-badge">月額 4,980円 / 買い切り 49,800円</span>
+  <div class="page-num">1 / 11</div>
+</div>
+
+<!-- Slide 2: 悩み -->
+<div class="slide" id="s2">
+  <div class="logo">顧客管理シート</div>
+  <h2>治療院の顧客管理<br>こんな<span class="accent">悩み</span>ありませんか?</h2>
+  <ul class="pain-list">
+    <li>紙カルテの管理が限界。患者が増えると検索・管理が追いつかない</li>
+    <li>高額なCRMは機能が多すぎて使いこなせない</li>
+    <li>売上やリピート率の分析を手作業でやっていて時間がかかる</li>
+    <li>LTV（顧客生涯価値）を把握できておらず、経営判断が勘頼み</li>
+    <li>新規とリピートの比率が見えず、集客戦略が立てられない</li>
+    <li>既存データ（Excel・紙）からの移行が面倒でシステム導入を諦めている</li>
+  </ul>
+  <div class="note">顧客管理シートは、これらを全部解決します。</div>
+  <div class="page-num">2 / 11</div>
+</div>
+
+<!-- Slide 3: 3つのカテゴリ -->
+<div class="slide" id="s3">
+  <div class="logo">顧客管理シート</div>
+  <h2>治療院CRM市場の<span class="accent">3つのカテゴリ</span></h2>
+  <div class="category-grid">
+    <div class="cat-card">
+      <div class="cat-num">カテゴリ 1</div>
+      <h3>治療院専用CRM</h3>
+      <div class="price">月7,480〜12,980円</div>
+      <p>COCKPIT等。高機能だが高額。小規模院には月額負担が大きい。</p>
+    </div>
+    <div class="cat-card">
+      <div class="cat-num">カテゴリ 2</div>
+      <h3>汎用CRM</h3>
+      <div class="price">月数万円〜</div>
+      <p>Salesforce、HubSpot等。治療院に特化していないため設定が複雑。</p>
+    </div>
+    <div class="cat-card">
+      <div class="cat-num">カテゴリ 3</div>
+      <h3>紙カルテ+Excel</h3>
+      <div class="price">0円</div>
+      <p>分析不可。検索に時間がかかる。データが属人化する。</p>
+    </div>
+  </div>
+  <div class="page-num">3 / 11</div>
+</div>
+
+<!-- Slide 4: 新カテゴリ -->
+<div class="slide slide-fourth" id="s4">
+  <div class="logo">顧客管理シート</div>
+  <h2>顧客管理シートは<br>「第4のカテゴリ」</h2>
+  <p class="desc">小規模治療院でも使える、治療院専用の経営分析CRM</p>
+  <div class="highlight-box">
+    高すぎない、複雑すぎない、でも分析はプロ級<br>
+    ── 月額4,980円で、LTV・ROAS・リピート率まで自動分析
+  </div>
+  <div class="page-num">4 / 11</div>
+</div>
+
+<!-- Slide 5: 強み1 -->
+<div class="slide" id="s5">
+  <div class="logo">顧客管理シート</div>
+  <h2><span class="strength-num">1</span>治療院専用<span class="accent">ダッシュボード</span></h2>
+  <p style="font-size:19px;color:#475569;margin-bottom:16px;">ログインした瞬間に、今日の経営状態が一目で分かります。</p>
+  <table class="content-table">
+    <tr><th>表示項目</th><th>内容</th><th>活用シーン</th></tr>
+    <tr><td>総患者数</td><td>アクティブな患者の総数</td><td>院の規模感を即把握</td></tr>
+    <tr><td>今月の施術数</td><td>月間の施術件数</td><td>目標対比の確認</td></tr>
+    <tr><td>本日の施術・売上</td><td>当日の施術一覧と売上合計</td><td>日次の売上管理</td></tr>
+    <tr><td>クイックアクション</td><td>新規患者・施術記録・一括入力・CSV取込</td><td>ワンタップで主要操作</td></tr>
+  </table>
+  <div class="bottom-note">Excel集計や手計算は不要。開くだけで経営数値が見える状態になります。</div>
+  <div class="page-num">5 / 11</div>
+</div>
+
+<!-- Slide 6: 強み2 -->
+<div class="slide" id="s6">
+  <div class="logo">顧客管理シート</div>
+  <h2><span class="strength-num">2</span>多角的<span class="accent">経営分析</span>を標準搭載</h2>
+  <div class="learn-grid">
+    <div class="learn-card">
+      <div class="learn-icon">1</div>
+      <h3>LTV分析</h3>
+      <p>患者ごとの生涯価値を自動算出。高LTV患者の傾向を把握</p>
+    </div>
+    <div class="learn-card">
+      <div class="learn-icon">2</div>
+      <h3>リピート率・新規/既存比率</h3>
+      <p>月次のリピート率推移と新規・既存患者の比率を自動グラフ化</p>
+    </div>
+    <div class="learn-card">
+      <div class="learn-icon">3</div>
+      <h3>広告ROAS分析</h3>
+      <p>広告費対効果を自動計算。どの集客チャネルが最も効率的かを可視化</p>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:20px;">
+    <div class="learn-card">
+      <div class="learn-icon">4</div>
+      <h3>時間帯別稼働率</h3>
+      <p>どの時間帯が空いているかを数値で把握。シフト最適化に活用</p>
+    </div>
+    <div class="learn-card">
+      <div class="learn-icon">5</div>
+      <h3>エリア別LTV</h3>
+      <p>地域ごとのLTVを比較。チラシ配布エリアの判断材料に</p>
+    </div>
+    <div class="learn-card">
+      <div class="learn-icon">6</div>
+      <h3>売上レポート</h3>
+      <p>日次・週次・月次の売上をグラフで表示。確定申告にも活用</p>
+    </div>
+  </div>
+  <div class="page-num">6 / 11</div>
+</div>
+
+<!-- Slide 7: 強み3 -->
+<div class="slide" id="s7">
+  <div class="logo">顧客管理シート</div>
+  <h2><span class="strength-num">3</span>CSV一括取込で<span class="accent">データ移行</span>がラク</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:10px;">
+    <div>
+      <h3>既存データをそのまま活用</h3>
+      <ul class="feature-list">
+        <li><span class="check">O</span>Excelや他システムのCSVをそのままインポート</li>
+        <li><span class="check">O</span>患者データ + 来院履歴データの2ステップで完了</li>
+        <li><span class="check">O</span>手入力の手間をゼロに</li>
+      </ul>
+    </div>
+    <div>
+      <h3>移行サポート</h3>
+      <ul class="feature-list">
+        <li><span class="check">O</span>CSV取込画面から直感的に操作</li>
+        <li><span class="check">O</span>データのバリデーション（不正データの自動検出）</li>
+        <li><span class="check">O</span>一括入力モードで過去データも高速登録</li>
+      </ul>
+    </div>
+  </div>
+  <div class="bottom-note">「データ移行が面倒」でシステム導入を諦めていた方にこそ使ってほしい機能です。</div>
+  <div class="page-num">7 / 11</div>
+</div>
+
+<!-- Slide 8: 強み4 -->
+<div class="slide" id="s8">
+  <div class="logo">顧客管理シート</div>
+  <h2><span class="strength-num">4</span>施術伝票で<span class="accent">売上管理</span>を自動化</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:10px;">
+    <div>
+      <h3>来院ごとに施術記録</h3>
+      <ul class="feature-list">
+        <li><span class="check">O</span>患者名・メニュー・金額をワンタップで記録</li>
+        <li><span class="check">O</span>本日の施術一覧をダッシュボードで即確認</li>
+        <li><span class="check">O</span>患者ごとの来院履歴を時系列で表示</li>
+      </ul>
+    </div>
+    <div>
+      <h3>売上の自動集計</h3>
+      <ul class="feature-list">
+        <li><span class="check">O</span>日次・月次の売上を自動計算</li>
+        <li><span class="check">O</span>平均単価の自動算出（異常値を除外）</li>
+        <li><span class="check">O</span>確定申告用の売上データとしても活用可能</li>
+      </ul>
+    </div>
+  </div>
+  <div class="bottom-note">手書きの売上メモやExcel集計から解放されます。</div>
+  <div class="page-num">8 / 11</div>
+</div>
+
+<!-- Slide 9: 強み5 -->
+<div class="slide" id="s9">
+  <div class="logo">顧客管理シート</div>
+  <h2><span class="strength-num">5</span>マルチテナント対応で<span class="accent">安全</span>に運用</h2>
+  <ul class="feature-list" style="margin-top:20px;">
+    <li><span class="check">O</span>院ごとにデータを完全分離。他院のデータは一切見えない</li>
+    <li><span class="check">O</span>Supabaseクラウド保存。端末が壊れてもデータは安全</li>
+    <li><span class="check">O</span>スマホ・タブレット・PCからアクセス可能</li>
+    <li><span class="check">O</span>患者ステータス管理（通院中・卒業・休止）で患者状態を一目で把握</li>
+    <li><span class="check">O</span>インストール不要。ブラウザからすぐに使い始められる</li>
+  </ul>
+  <div class="note">個人情報を扱うからこそ、セキュリティとデータ分離は妥協しません。</div>
+  <div class="page-num">9 / 11</div>
+</div>
+
+<!-- Slide 10: 料金比較 -->
+<div class="slide" id="s10">
+  <div class="logo">顧客管理シート</div>
+  <h2><span class="accent">料金比較</span></h2>
+  <table class="price-table">
+    <tr><th>サービス</th><th>月額</th><th>できること</th></tr>
+    <tr><td>COCKPIT スタンダード</td><td>12,980円</td><td>予約+CRM+分析。2名以上は追加料金</td></tr>
+    <tr><td>COCKPIT ライト</td><td>7,480円</td><td>顧客管理のみ。分析機能なし</td></tr>
+    <tr><td>LiME</td><td>9,240円〜</td><td>美容院向け。治療院に最適化されていない</td></tr>
+    <tr><td>紙カルテ+Excel</td><td>0円</td><td>分析不可。検索・管理に限界</td></tr>
+    <tr class="highlight"><td>顧客管理シート</td><td>月額 4,980円</td><td>CRM + LTV/ROAS分析 + CSV取込 + 売上管理</td></tr>
+  </table>
+  <div class="note">COCKPITの半額以下で、LTV・ROAS分析まで標準搭載。</div>
+  <div class="page-num">10 / 11</div>
+</div>
+
+<!-- Slide 11: 導入の流れ -->
+<div class="slide" id="s11">
+  <div class="logo">顧客管理シート</div>
+  <h2><span class="accent">導入の流れ</span></h2>
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <h3>アカウント登録</h3>
+      <p>メールアドレスのみ</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <h3>既存データ取込</h3>
+      <p>CSV一括インポート</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <h3>施術記録開始</h3>
+      <p>来院ごとに記録</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <h3>分析ダッシュボード</h3>
+      <p>自動でデータ蓄積</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-num">5</div>
+      <h3>経営改善</h3>
+      <p>データで意思決定</p>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:50px;">
+    <div style="display:inline-block;background:#eff6ff;border:2px solid #0ea5e9;border-radius:16px;padding:30px 60px;">
+      <p style="font-size:26px;font-weight:900;color:#0ea5e9;">勘に頼る経営から、データで判断する経営へ。</p>
+      <p style="font-size:18px;color:#475569;margin-top:10px;">治療院のCRM・経営分析を、月4,980円で実現。</p>
+      <p style="font-size:20px;font-weight:700;color:#e9520e;margin-top:10px;">それが顧客管理シートです。</p>
+    </div>
+  </div>
+  <div class="page-num">11 / 11</div>
+</div>
+
+<div class="nav">
+  <button onclick="prevSlide()">← 前へ</button>
+  <button onclick="nextSlide()">次へ →</button>
+</div>
+
+<script>
+  let current = 0;
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  function showSlide(n) { slides[current].classList.remove('active'); current = (n + total) % total; slides[current].classList.add('active'); }
+  function nextSlide() { showSlide(current + 1); }
+  function prevSlide() { showSlide(current - 1); }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+  });
+</script>
+
+</body>
+</html>

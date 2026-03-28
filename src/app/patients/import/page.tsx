@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AppShell from '@/components/AppShell'
 import Header from '@/components/Header'
+import { useToast } from '@/components/Toast'
 import { createClient } from '@/lib/supabase/client'
 import { getClinicId } from '@/lib/clinic'
 
@@ -183,6 +184,7 @@ export default function ImportPage() {
   const clinicId = getClinicId()
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
+  const { showToast } = useToast()
 
   const [step, setStep] = useState<Step>('upload')
   const [fileName, setFileName] = useState('')
@@ -242,7 +244,7 @@ export default function ImportPage() {
 
   const goToPreview = () => {
     if (!mapping.includes('name')) {
-      alert('「氏名」の列を指定してください')
+      showToast('「氏名」の列を指定してください', 'error')
       return
     }
     setStep('preview')

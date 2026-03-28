@@ -6,6 +6,7 @@ import Header from '@/components/Header'
 import AppShell from '@/components/AppShell'
 import { createClient } from '@/lib/supabase/client'
 import { getClinicId } from '@/lib/clinic'
+import { SkeletonDashboard } from '@/components/Skeleton'
 import type { Patient, Slip } from '@/lib/types'
 
 interface TodaySlip extends Slip {
@@ -88,7 +89,7 @@ export default function HomePage() {
         </div>
 
         {loading ? (
-          <p className="text-gray-400 text-center py-8">読み込み中...</p>
+          <SkeletonDashboard />
         ) : (
           <>
             {/* 本日の施術 */}

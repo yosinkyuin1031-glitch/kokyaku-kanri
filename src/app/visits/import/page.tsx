@@ -4,6 +4,7 @@ import { useState, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import AppShell from '@/components/AppShell'
 import Header from '@/components/Header'
+import { useToast } from '@/components/Toast'
 import { createClient } from '@/lib/supabase/client'
 import { getClinicId } from '@/lib/clinic'
 import { findAllMatches, type PatientCandidate } from '@/lib/nameMatch'
@@ -80,6 +81,7 @@ export default function SlipImportPage() {
   const supabase = createClient()
   const clinicId = getClinicId()
   const fileRef = useRef<HTMLInputElement>(null)
+  const { showToast } = useToast()
 
   const [step, setStep] = useState<Step>('upload')
   const [fileName, setFileName] = useState('')
@@ -132,7 +134,7 @@ export default function SlipImportPage() {
   // Step 3: プレビュー（患者マッチング実行）
   const goToPreview = async () => {
     if (!hasRequired) {
-      alert('「患者名」と「来院日」の列を必ず指定してください')
+      showToast('「患者名」と「来院日」の列を必ず指定してください', 'error')
       return
     }
     setMatchProcessing(true)

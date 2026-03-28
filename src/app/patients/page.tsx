@@ -304,7 +304,7 @@ export default function PatientsPage() {
         <p className="text-xs text-gray-500 mb-2">{filtered.length}件の患者</p>
 
         {loading ? (
-          <p className="text-gray-400 text-center py-8">読み込み中...</p>
+          <div className="animate-pulse space-y-3 py-4" role="status" aria-label="読み込み中"><div className="h-12 bg-gray-100 rounded-lg" /><div className="h-12 bg-gray-100 rounded-lg" /><div className="h-12 bg-gray-100 rounded-lg" /></div>
         ) : filtered.length === 0 ? (
           <p className="text-gray-400 text-center py-8">患者が見つかりません</p>
         ) : (

@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import AppShell from '@/components/AppShell'
+import ConfirmModal from '@/components/ConfirmModal'
+import { SkeletonDetail } from '@/components/Skeleton'
 import { createClient } from '@/lib/supabase/client'
 import { getClinicId } from '@/lib/clinic'
 import type { Patient, Slip } from '@/lib/types'
@@ -24,6 +26,9 @@ export default function PatientDetailPage() {
   const [showAllSlips, setShowAllSlips] = useState(false)
   const [editingSlip, setEditingSlip] = useState<string | null>(null)
   const [slipForm, setSlipForm] = useState<Partial<Slip>>({})
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean; title: string; message: string; onConfirm: () => void
+  }>({ open: false, title: '', message: '', onConfirm: () => {} })
 
   useEffect(() => {
     const load = async () => {
@@ -45,10 +50,17 @@ export default function PatientDetailPage() {
     setEditing(false)
   }
 
-  const handleDelete = async () => {
-    if (!confirm('この患者を削除しますか？')) return
-    await supabase.from('cm_patients').delete().eq('id', id)
-    router.push('/patients')
+  const handleDelete = () => {
+    setConfirmModal({
+      open: true,
+      title: '患者削除の確認',
+      message: 'この患者を削除しますか？関連する施術記録も全て削除されます。この操作は取り消せません。',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, open: false }))
+        await supabase.from('cm_patients').delete().eq('id', id)
+        router.push('/patients')
+      },
+    })
   }
 
   const handleSlipEdit = (slip: Slip) => {
@@ -64,16 +76,23 @@ export default function PatientDetailPage() {
     setEditingSlip(null)
   }
 
-  const handleSlipDelete = async (slipId: string) => {
-    if (!confirm('この伝票を削除しますか？')) return
-    await supabase.from('cm_slips').delete().eq('id', slipId)
-    setSlips(slips.filter(s => s.id !== slipId))
-    setEditingSlip(null)
+  const handleSlipDelete = (slipId: string) => {
+    setConfirmModal({
+      open: true,
+      title: '伝票削除の確認',
+      message: 'この伝票を削除しますか？この操作は取り消せません。',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, open: false }))
+        await supabase.from('cm_slips').delete().eq('id', slipId)
+        setSlips(slips.filter(s => s.id !== slipId))
+        setEditingSlip(null)
+      },
+    })
   }
 
   const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#14252A]"
 
-  if (loading) return <AppShell><Header title="患者詳細" /><p className="text-center py-8 text-gray-400">読み込み中...</p></AppShell>
+  if (loading) return <AppShell><Header title="患者詳細" /><SkeletonDetail /></AppShell>
   if (!patient) return <AppShell><Header title="患者詳細" /><p className="text-center py-8 text-gray-400">患者が見つかりません</p></AppShell>
 
   const age = patient.birth_date
@@ -98,6 +117,16 @@ export default function PatientDetailPage() {
   return (
     <AppShell>
       <Header title="患者詳細" />
+      <ConfirmModal
+        open={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmLabel="削除する"
+        cancelLabel="キャンセル"
+        variant="danger"
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))}
+      />
       <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
 
         {/* 患者基本情報 */}

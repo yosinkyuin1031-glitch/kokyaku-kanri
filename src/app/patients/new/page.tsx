@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import AppShell from '@/components/AppShell'
+import { useToast } from '@/components/Toast'
 import { createClient } from '@/lib/supabase/client'
 import { getClinicId } from '@/lib/clinic'
 import { REFERRAL_SOURCES, PREFECTURES } from '@/lib/types'
@@ -12,6 +13,7 @@ export default function NewPatientPage() {
   const supabase = createClient()
   const clinicId = getClinicId()
   const router = useRouter()
+  const { showToast } = useToast()
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [voiceText, setVoiceText] = useState('')
@@ -41,7 +43,7 @@ export default function NewPatientPage() {
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) {
-      alert('お使いのブラウザは音声入力に対応していません')
+      showToast('お使いのブラウザは音声入力に対応していません', 'error')
       return
     }
 

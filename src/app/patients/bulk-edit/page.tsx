@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import AppShell from '@/components/AppShell'
+import { useToast } from '@/components/Toast'
 import { createClient } from '@/lib/supabase/client'
 import { getClinicId } from '@/lib/clinic'
 import { REFERRAL_SOURCES, PREFECTURES } from '@/lib/types'
@@ -49,6 +50,7 @@ interface PatientRow {
 export default function BulkEditPage() {
   const supabase = createClient()
   const clinicId = getClinicId()
+  const { showToast } = useToast()
 
   const [patients, setPatients] = useState<PatientRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -142,7 +144,7 @@ export default function BulkEditPage() {
 
     setEdits({})
     setSaving(false)
-    alert(`${count}件の患者情報を更新しました`)
+    showToast(`${count}件の患者情報を更新しました`, 'success')
   }
 
   const handleBulkApply = () => {
@@ -330,7 +332,7 @@ export default function BulkEditPage() {
         )}
 
         {loading ? (
-          <p className="text-gray-400 text-center py-8">読み込み中...</p>
+          <div className="animate-pulse space-y-3 py-4" role="status" aria-label="読み込み中"><div className="h-12 bg-gray-100 rounded-lg" /><div className="h-12 bg-gray-100 rounded-lg" /><div className="h-12 bg-gray-100 rounded-lg" /></div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-green-600 font-bold text-lg mb-2">全て設定済み</p>

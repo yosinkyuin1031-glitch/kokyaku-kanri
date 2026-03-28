@@ -129,7 +129,7 @@ export default function RevenuePage() {
         </div>
 
         {loading ? (
-          <p className="text-gray-400 text-center py-8">読み込み中...</p>
+          <div className="animate-pulse space-y-3 py-4" role="status" aria-label="読み込み中"><div className="h-12 bg-gray-100 rounded-lg" /><div className="h-12 bg-gray-100 rounded-lg" /><div className="h-12 bg-gray-100 rounded-lg" /></div>
         ) : (
           <>
             {/* メイン指標 */}

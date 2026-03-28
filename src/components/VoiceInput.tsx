@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import { useToast } from '@/components/Toast'
 
 interface VoiceInputProps {
   onResult: (text: string) => void
@@ -11,6 +12,7 @@ interface VoiceInputProps {
 export default function VoiceInput({ onResult, className = '', size = 'md' }: VoiceInputProps) {
   const [listening, setListening] = useState(false)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const { showToast } = useToast()
 
   const toggle = useCallback(() => {
     if (listening) {
@@ -21,7 +23,7 @@ export default function VoiceInput({ onResult, className = '', size = 'md' }: Vo
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
-      alert('お使いのブラウザは音声入力に対応していません。Chrome or Safariをお使いください。')
+      showToast('お使いのブラウザは音声入力に対応していません。Chrome or Safariをお使いください。', 'error')
       return
     }
 

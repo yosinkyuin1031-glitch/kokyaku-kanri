@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import AppShell from '@/components/AppShell'
+import { useToast } from '@/components/Toast'
 import { createClient } from '@/lib/supabase/client'
 import { getClinicId } from '@/lib/clinic'
 
@@ -22,6 +23,7 @@ const PLAN_DESCRIPTIONS: Record<PlanType, string> = {
 
 export default function SettingsPage() {
   const supabase = createClient()
+  const { showToast } = useToast()
   const [email, setEmail] = useState('')
   const [clinicName, setClinicName] = useState('')
   const [plan, setPlan] = useState<PlanType>('free')
@@ -83,10 +85,10 @@ export default function SettingsPage() {
       if (data.url) {
         window.location.href = data.url
       } else {
-        alert(data.error || 'エラーが発生しました')
+        showToast(data.error || 'エラーが発生しました', 'error')
       }
     } catch {
-      alert('ネットワークエラーが発生しました')
+      showToast('ネットワークエラーが発生しました', 'error')
     } finally {
       setLoading(false)
     }
@@ -104,10 +106,10 @@ export default function SettingsPage() {
       if (data.url) {
         window.location.href = data.url
       } else {
-        alert(data.error || 'エラーが発生しました')
+        showToast(data.error || 'エラーが発生しました', 'error')
       }
     } catch {
-      alert('ネットワークエラーが発生しました')
+      showToast('ネットワークエラーが発生しました', 'error')
     } finally {
       setLoading(false)
     }

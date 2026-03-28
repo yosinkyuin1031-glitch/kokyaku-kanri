@@ -122,7 +122,7 @@ export default function SimpleMasterPage({ title, tableName, columns, defaultVal
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-center py-8 text-sm">読み込み中...</p>
+        <div className="animate-pulse space-y-2 p-4" role="status" aria-label="読み込み中"><div className="h-10 bg-gray-100 rounded" /><div className="h-10 bg-gray-100 rounded" /><div className="h-10 bg-gray-100 rounded" /></div>
       ) : items.length === 0 ? (
         <p className="text-gray-400 text-center py-8 text-sm">データがありません</p>
       ) : (
