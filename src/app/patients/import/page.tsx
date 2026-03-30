@@ -193,7 +193,7 @@ export default function ImportPage() {
   const [mapping, setMapping] = useState<string[]>([])
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState({ success: 0, errors: 0, errorMessages: [] as string[] })
-  const [duplicateMode, setDuplicateMode] = useState<'skip' | 'update'>('skip')
+  const [duplicateMode, setDuplicateMode] = useState<'skip' | 'update' | 'merge'>('skip')
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -346,28 +346,60 @@ export default function ImportPage() {
 
       if (records.length === 0) continue
 
-      if (duplicateMode === 'update') {
+      if (duplicateMode === 'update' || duplicateMode === 'merge') {
         // 1件ずつupsert（名前+電話番号で重複チェック）
         for (const rec of records) {
           const phoneForMatch = normalizePhone((rec.phone as string) || '')
-          const { data: existing } = await supabase
+          // 名前で検索（電話番号がある場合は名前+電話番号、なければ名前のみ）
+          let query = supabase
             .from('cm_patients')
-            .select('id')
+            .select('*')
             .eq('clinic_id', clinicId)
             .eq('name', rec.name as string)
-            .eq('phone', phoneForMatch)
-            .limit(1)
+          if (phoneForMatch) {
+            query = query.eq('phone', phoneForMatch)
+          }
+          const { data: existing } = await query.limit(1)
 
           if (existing && existing.length > 0) {
-            const { error } = await supabase
-              .from('cm_patients')
-              .update(rec)
-              .eq('id', existing[0].id)
-            if (error) {
-              errors++
-              errorMessages.push(`${rec.name}: ${error.message}`)
+            if (duplicateMode === 'merge') {
+              // 補完モード: 既存データが空の項目のみCSVの値で埋める
+              const mergeData: Record<string, unknown> = {}
+              const existingRow = existing[0] as Record<string, unknown>
+              for (const [key, val] of Object.entries(rec)) {
+                if (key === 'clinic_id' || key === 'status' || key === 'is_enabled' || key === 'is_direct_mail') continue
+                const existingVal = existingRow[key]
+                // 既存が空・null・未設定の場合のみCSV値で補完
+                if ((existingVal === null || existingVal === undefined || existingVal === '' || existingVal === 0) && val !== null && val !== undefined && val !== '') {
+                  mergeData[key] = val
+                }
+              }
+              if (Object.keys(mergeData).length > 0) {
+                const { error } = await supabase
+                  .from('cm_patients')
+                  .update(mergeData)
+                  .eq('id', existing[0].id)
+                if (error) {
+                  errors++
+                  errorMessages.push(`${rec.name}: ${error.message}`)
+                } else {
+                  success++
+                }
+              } else {
+                success++ // 補完不要（既にすべて入力済み）
+              }
             } else {
-              success++
+              // updateモード: 全フィールド上書き
+              const { error } = await supabase
+                .from('cm_patients')
+                .update(rec)
+                .eq('id', existing[0].id)
+              if (error) {
+                errors++
+                errorMessages.push(`${rec.name}: ${error.message}`)
+              } else {
+                success++
+              }
             }
           } else {
             const { error } = await supabase.from('cm_patients').insert(rec)
@@ -563,16 +595,30 @@ export default function ImportPage() {
             {/* 重複処理設定 */}
             <div className="bg-yellow-50 rounded-lg p-3 mb-4">
               <p className="text-xs font-bold text-gray-700 mb-2">同じ名前＋電話番号の患者が既にいる場合:</p>
-              <div className="flex gap-3">
-                <label className="flex items-center gap-1 text-xs">
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-1.5 text-xs">
                   <input type="radio" checked={duplicateMode === 'skip'} onChange={() => setDuplicateMode('skip')} />
-                  スキップ（新規のみ追加）
+                  <span>スキップ（新規のみ追加）</span>
                 </label>
-                <label className="flex items-center gap-1 text-xs">
+                <label className="flex items-center gap-1.5 text-xs">
+                  <input type="radio" checked={duplicateMode === 'merge'} onChange={() => setDuplicateMode('merge')} />
+                  <span className="font-bold text-green-700">補完モード（未入力項目のみ埋める・既存データは保護）</span>
+                </label>
+                <label className="flex items-center gap-1.5 text-xs">
                   <input type="radio" checked={duplicateMode === 'update'} onChange={() => setDuplicateMode('update')} />
-                  上書き更新
+                  <span className="text-red-600">上書き更新（既存データを完全に置き換え）</span>
                 </label>
               </div>
+              {duplicateMode === 'merge' && (
+                <div className="mt-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700">
+                  電話番号・住所など、現在空欄の項目のみCSVの値で補完します。既に入力済みのデータは変更されません。
+                </div>
+              )}
+              {duplicateMode === 'update' && (
+                <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-600">
+                  既存の患者データがCSVの内容で完全に上書きされます。ご注意ください。
+                </div>
+              )}
             </div>
 
             {/* モバイル: カードプレビュー */}
