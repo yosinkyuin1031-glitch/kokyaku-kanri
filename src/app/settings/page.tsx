@@ -31,6 +31,7 @@ export default function SettingsPage() {
   const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [patientCount, setPatientCount] = useState<number>(0)
+  const [reservationSyncEnabled, setReservationSyncEnabled] = useState<boolean | null>(null)
 
   // メール・パスワード変更
   const [newEmail, setNewEmail] = useState('')
@@ -69,6 +70,16 @@ export default function SettingsPage() {
         .eq('clinic_id', clinicId)
 
       setPatientCount(count || 0)
+
+      // 予約管理連携の設定を確認
+      const { data: syncSetting } = await supabase
+        .from('rv_settings')
+        .select('value')
+        .eq('clinic_id', clinicId)
+        .eq('key', 'customer_mgmt_sync')
+        .single()
+
+      setReservationSyncEnabled(syncSetting?.value === 'true')
     }
     load()
   }, [])
@@ -299,6 +310,33 @@ export default function SettingsPage() {
             <p className="text-xs text-gray-400 mt-3">
               ベーシックプランは14日間の無料トライアル付き。トライアル期間中はいつでもキャンセル可能です。
             </p>
+          )}
+        </div>
+
+        {/* 予約管理連携 */}
+        <div className="bg-white rounded-xl shadow-sm p-4">
+          <h3 className="font-bold text-gray-800 text-sm mb-3">予約管理システム連携</h3>
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${
+              reservationSyncEnabled ? 'bg-green-500' : 'bg-gray-400'
+            }`} />
+            <span className="text-sm text-gray-700">
+              {reservationSyncEnabled === null
+                ? '確認中...'
+                : reservationSyncEnabled
+                  ? '連携ON'
+                  : '連携OFF'}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mb-2">
+            {reservationSyncEnabled
+              ? '予約管理で「来院済み」にすると、伝票が自動作成されます。'
+              : '予約管理システムの設定画面から連携をONにできます。'}
+          </p>
+          {reservationSyncEnabled && (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700">
+              予約データ（メニュー・金額・来院日）が自動反映されます
+            </div>
           )}
         </div>
 
