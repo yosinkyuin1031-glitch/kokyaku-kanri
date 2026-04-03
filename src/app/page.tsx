@@ -13,11 +13,16 @@ interface TodaySlip extends Slip {
   patient?: Patient
 }
 
+interface FollowPatient extends Patient {
+  daysSince: number
+}
+
 export default function HomePage() {
   const supabase = createClient()
   const clinicId = getClinicId()
   const [todaySlips, setTodaySlips] = useState<TodaySlip[]>([])
   const [recentPatients, setRecentPatients] = useState<Patient[]>([])
+  const [followPatients, setFollowPatients] = useState<FollowPatient[]>([])
   const [stats, setStats] = useState({ totalPatients: 0, monthVisits: 0, todayVisits: 0, todayRevenue: 0 })
   const [loading, setLoading] = useState(true)
 
@@ -43,6 +48,26 @@ export default function HomePage() {
         todayVisits: todayRes.data?.length || 0,
         todayRevenue,
       })
+
+      // フォロー患者リスト（30日以上60日以内）
+      const now = new Date()
+      const day60ago = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      const day30ago = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      const { data: followData } = await supabase
+        .from('cm_patients')
+        .select('*')
+        .eq('clinic_id', clinicId)
+        .eq('status', 'active')
+        .lte('last_visit_date', day30ago)
+        .gte('last_visit_date', day60ago)
+        .order('last_visit_date', { ascending: true })
+
+      const followList: FollowPatient[] = (followData || []).map(p => ({
+        ...p,
+        daysSince: Math.floor((now.getTime() - new Date(p.last_visit_date).getTime()) / (24 * 60 * 60 * 1000)),
+      }))
+      setFollowPatients(followList)
+
       setLoading(false)
     }
     load()
@@ -120,6 +145,34 @@ export default function HomePage() {
                 </div>
               )}
             </div>
+
+            {/* フォロー患者リスト */}
+            {followPatients.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm p-5 mb-5 border-l-4 border-l-orange-400">
+                <h2 className="font-bold text-gray-800 text-base mb-1">フォロー患者</h2>
+                <p className="text-xs text-gray-400 mb-4">前回来院から30〜60日経過した患者（{followPatients.length}名）</p>
+                <div className="space-y-2">
+                  {followPatients.map(p => (
+                    <Link key={p.id} href={`/patients/${p.id}`} className="block border border-orange-100 rounded-lg p-3.5 hover:bg-orange-50/50 hover:shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-bold text-sm">{p.name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{p.chief_complaint?.slice(0, 25)}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                            {p.daysSince}日経過
+                          </span>
+                          {p.phone && (
+                            <p className="text-[10px] text-gray-400 mt-1">{p.phone}</p>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* 最近の患者 */}
             <div className="bg-white rounded-xl shadow-sm p-5 mb-5">

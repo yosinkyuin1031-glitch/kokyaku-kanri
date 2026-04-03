@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import AppShell from '@/components/AppShell'
 import { useToast } from '@/components/Toast'
 import { createClient } from '@/lib/supabase/client'
 import { getClinicId } from '@/lib/clinic'
-import { REFERRAL_SOURCES, PREFECTURES } from '@/lib/types'
+import { PREFECTURES } from '@/lib/types'
 
 export default function NewPatientPage() {
   const supabase = createClient()
@@ -30,6 +30,25 @@ export default function NewPatientPage() {
     chief_complaint: '', medical_history: '', notes: '',
     is_direct_mail: true, is_enabled: true,
   })
+
+  // マスターデータ取得
+  const [occupations, setOccupations] = useState<string[]>([])
+  const [visitMotives, setVisitMotives] = useState<string[]>([])
+  const [symptoms, setSymptoms] = useState<string[]>([])
+
+  useEffect(() => {
+    const loadMasters = async () => {
+      const [occRes, motRes, symRes] = await Promise.all([
+        supabase.from('cm_occupations').select('name').eq('clinic_id', clinicId).eq('is_active', true).order('sort_order'),
+        supabase.from('cm_visit_motives').select('name').eq('clinic_id', clinicId).eq('is_active', true).order('sort_order'),
+        supabase.from('cm_symptoms').select('name').eq('clinic_id', clinicId).eq('is_active', true).order('sort_order'),
+      ])
+      setOccupations((occRes.data || []).map(r => r.name))
+      setVisitMotives((motRes.data || []).map(r => r.name))
+      setSymptoms((symRes.data || []).map(r => r.name))
+    }
+    loadMasters()
+  }, [])
 
   const update = (key: string, value: string | boolean) => setForm(prev => ({ ...prev, [key]: value }))
 
@@ -201,12 +220,12 @@ export default function NewPatientPage() {
 
           <div>
             <label className="block text-xs text-gray-600 mb-1">氏名 *</label>
-            <input type="text" value={form.name} onChange={(e) => update('name', e.target.value)} className={inputClass} placeholder="大口 太郎" />
+            <input type="text" value={form.name} onChange={(e) => update('name', e.target.value)} className={inputClass} placeholder="山田 太郎" />
           </div>
 
           <div>
             <label className="block text-xs text-gray-600 mb-1">ふりがな</label>
-            <input type="text" value={form.furigana} onChange={(e) => update('furigana', e.target.value)} className={inputClass} placeholder="おおぐち たろう" />
+            <input type="text" value={form.furigana} onChange={(e) => update('furigana', e.target.value)} className={inputClass} placeholder="ヤマダ タロウ" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -227,7 +246,18 @@ export default function NewPatientPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-600 mb-1">電話番号</label>
-              <input type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} className={inputClass} placeholder="090-1234-5678" />
+              <input type="tel" value={form.phone} onChange={(e) => {
+                const v = e.target.value.replace(/[^\d-]/g, '')
+                // 自動ハイフン挿入
+                const digits = v.replace(/-/g, '')
+                let formatted = digits
+                if (digits.length >= 4 && digits.length <= 7) {
+                  formatted = digits.slice(0, 3) + '-' + digits.slice(3)
+                } else if (digits.length >= 8) {
+                  formatted = digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7, 11)
+                }
+                update('phone', formatted)
+              }} className={inputClass} placeholder="090-XXXX-XXXX" />
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">メールアドレス</label>
@@ -276,20 +306,39 @@ export default function NewPatientPage() {
 
           <div>
             <label className="block text-xs text-gray-600 mb-1">職業</label>
-            <input type="text" value={form.occupation} onChange={(e) => update('occupation', e.target.value)} className={inputClass} placeholder="会社員" />
+            <select value={form.occupation} onChange={(e) => update('occupation', e.target.value)} className={inputClass}>
+              <option value="">選択してください</option>
+              {occupations.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
           </div>
 
           <div>
             <label className="block text-xs text-gray-600 mb-1">来院経路</label>
             <select value={form.referral_source} onChange={(e) => update('referral_source', e.target.value)} className={inputClass}>
               <option value="">選択してください</option>
-              {REFERRAL_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+              {visitMotives.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
           <div>
             <label className="block text-xs text-gray-600 mb-1">主訴（お困りの症状）</label>
-            <textarea value={form.chief_complaint} onChange={(e) => update('chief_complaint', e.target.value)} className={inputClass} rows={3} placeholder="腰痛、肩こり、頭痛..." />
+            <div className="flex flex-wrap gap-2 mb-2">
+              {symptoms.map(s => {
+                const selected = form.chief_complaint.split(/[,、\s]+/).map(v => v.trim()).filter(Boolean).includes(s)
+                return (
+                  <button key={s} type="button" onClick={() => {
+                    const current = form.chief_complaint.split(/[,、\s]+/).map(v => v.trim()).filter(Boolean)
+                    const next = selected ? current.filter(v => v !== s) : [...current, s]
+                    update('chief_complaint', next.join('、'))
+                  }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      selected ? 'bg-[#14252A] text-white border-[#14252A]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >{s}</button>
+                )
+              })}
+            </div>
+            <input type="text" value={form.chief_complaint} onChange={(e) => update('chief_complaint', e.target.value)} className={inputClass} placeholder="上記から選択、または直接入力" />
           </div>
 
           <div>
