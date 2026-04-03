@@ -374,42 +374,19 @@ export default function StatsPage() {
     downloadCsv(rows, `年間統計表_${selectedYear}年.csv`)
   }
 
-  // 単月スプレッドシート（CSV）出力
+  // 単月スプレッドシート（CSV）出力 - 元スプレッドシート形式
   const handleMonthlyCsvExport = () => {
     const mIdx = selectedMonth - 1
     const d = monthlyData[mIdx]
     const monthStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`
     const rows: string[][] = []
 
-    rows.push([`${selectedYear}年${selectedMonth}月 月間統計表`])
-    rows.push([`出力日: ${new Date().toLocaleDateString('ja-JP')}`])
-    rows.push([])
+    // --- データ準備 ---
+    const newIds = newPatientIdsByMonth[monthStr] || new Set()
+    const newPList = patients.filter(p => newIds.has(p.id))
+    const monthSlips = slips.filter(s => s.visit_date.startsWith(monthStr))
 
-    // 基本実績
-    rows.push(['【月間基本実績】'])
-    rows.push(['項目', '値'])
-    rows.push(['売上', String(d.revenue)])
-    const revPct = d.revenueGoal > 0 ? Math.round(d.revenue / d.revenueGoal * 100) : null
-    rows.push(['売上目標', d.revenueGoal > 0 ? String(d.revenueGoal) : ''])
-    rows.push(['達成率', revPct !== null ? `${revPct}%` : ''])
-    rows.push(['施術回数', String(d.visitCount)])
-    rows.push(['カルテ枚数', String(d.uniquePatients)])
-    rows.push(['来院頻度', d.frequency > 0 ? d.frequency.toFixed(1) + '回' : ''])
-    rows.push(['施術単価', String(d.avgPrice)])
-    rows.push(['新規売上', String(d.newRevenue)])
-    rows.push(['既存売上', String(d.existingRevenue)])
-    rows.push(['新規数', String(d.newPatients)])
-    rows.push(['新規目標', d.newPatientGoal > 0 ? String(d.newPatientGoal) : ''])
-    rows.push(['既存数', String(d.repeatPatients)])
-    rows.push(['広告費', String(d.adCost)])
-    rows.push(['CPA', d.cpa !== null ? String(d.cpa) : ''])
-    rows.push(['新規LTV', d.ltv > 0 ? String(d.ltv) : ''])
-    rows.push(['利益LTV', d.profitLtv !== null ? String(d.profitLtv) : ''])
-    rows.push(['ROAS', d.roas !== null ? `${d.roas}%` : ''])
-
-    rows.push([], [])
-
-    // 広告媒体別（その月）
+    // 広告媒体別
     const monthChannels: Record<string, { cost: number; newPatients: number }> = {}
     adCosts.filter(a => a.month === monthStr).forEach(a => {
       if (!monthChannels[a.channel]) monthChannels[a.channel] = { cost: 0, newPatients: 0 }
@@ -417,80 +394,201 @@ export default function StatsPage() {
       monthChannels[a.channel].newPatients += a.new_patients
     })
     const totalMonthAd = Object.values(monthChannels).reduce((s, c) => s + c.cost, 0)
-
-    rows.push(['【広告媒体別実績】'])
-    rows.push(['媒体', '新規数', '費用', 'CPA', '売上', 'LTV', '利益LTV'])
     const mchEntries = Object.entries(monthChannels).sort((a, b) => b[1].cost - a[1].cost)
-    if (mchEntries.length > 0) {
-      mchEntries.forEach(([ch, data]) => {
-        rows.push([
-          ch, String(data.newPatients), String(data.cost),
-          data.newPatients > 0 ? String(Math.round(data.cost / data.newPatients)) : '',
-          '', '', '' // 売上・LTV・利益LTVは手入力用
-        ])
-      })
-      rows.push(['合計', '', String(totalMonthAd), '', '', '', ''])
-    } else {
-      rows.push(['データなし', '', '', '', '', '', ''])
+
+    // 既存患者売上
+    const existRevMap: Record<string, { name: string; revenue: number; source: string }> = {}
+    monthSlips.forEach(s => {
+      if (!s.patient_id || newIds.has(s.patient_id)) return
+      if (!existRevMap[s.patient_id]) {
+        const pat = patients.find(pp => pp.id === s.patient_id)
+        existRevMap[s.patient_id] = { name: s.patient_name || pat?.name || '', revenue: 0, source: pat?.referral_source || '' }
+      }
+      existRevMap[s.patient_id].revenue += (s.total_price || 0)
+    })
+    const existEntries = Object.values(existRevMap).sort((a, b) => b.revenue - a.revenue)
+
+    // 空セルパディング用
+    const e = (cols: number) => Array(cols).fill('')
+    // 行を結合（左セクション + 空白 + 右セクション）
+    const merge = (left: string[], right: string[], leftWidth = 6) => {
+      const padded = [...left, ...e(Math.max(0, leftWidth - left.length)), '', ...right]
+      return padded
     }
 
-    rows.push([], [])
+    // ===========================
+    // セクション1: タイトル行
+    // ===========================
+    // 左: タイトル | 右: 新規患者管理タイトル
+    rows.push(merge(
+      [`${selectedYear}年${selectedMonth}月 月間統計表`, '', '', '', '', ''],
+      ['新規患者管理']
+    ))
+    rows.push(merge(e(6), e(6)))
 
-    // 新規患者リスト
-    const newIds = newPatientIdsByMonth[monthStr] || new Set()
-    const newPList = patients.filter(p => newIds.has(p.id))
-    rows.push(['【新規患者】'])
-    rows.push(['氏名', '媒体', '主訴', '初回売上', '初回施術後', '来院理由', '備考'])
+    // ===========================
+    // セクション2: 左=基本実績 / 右=新規患者リスト（横並び）
+    // ===========================
+    const leftKpi: string[][] = [
+      ['売上', String(d.revenue || 0), '', '売上目標', d.revenueGoal > 0 ? String(d.revenueGoal) : '', ''],
+      ['営業日数', '', '', '目標達成率', d.revenueGoal > 0 ? `${Math.round(d.revenue / d.revenueGoal * 100)}%` : '', ''],
+      ['施術回数', String(d.visitCount), '', '', '', ''],
+      ['予約枠', '', '', '稼働率', '', ''],
+      ['カルテ枚数', String(d.uniquePatients), '', '', '', ''],
+      ['来院頻度', d.frequency > 0 ? d.frequency.toFixed(1) + '回' : '', '', '', '', ''],
+      ['単価', d.avgPrice > 0 ? String(d.avgPrice) : '', '', '分単価', '', ''],
+      ['既存売上', String(d.existingRevenue || 0), '', '新規売上', String(d.newRevenue || 0), ''],
+      ['新規数合計', String(d.newPatients), '人', '2回目リピ数', '', '人'],
+      ['6回目リピ数', '', '人', '2回目リピ率', '', ''],
+      ['6回目リピ率', '', '', '回数券購入率', '', ''],
+      ['回数券内訳', '', '', '', '', ''],
+      ['LTV', d.ltv > 0 ? String(d.ltv) : '', '', '', '', ''],
+      ['CPA', d.cpa !== null ? String(d.cpa) : '', '', '', '', ''],
+      ['利益LTV', d.profitLtv !== null ? String(d.profitLtv) : '', '', '', '', ''],
+    ]
+
+    // 右: 新規患者テーブル
+    const rightNewPatients: string[][] = [
+      ['問い合わせ氏名', '媒体', 'キーワード', 'CVの有無', '初回施術後', '理由'],
+    ]
     if (newPList.length > 0) {
       newPList.forEach(p => {
-        const pSlips = slips.filter(s => s.patient_id === p.id && s.visit_date.startsWith(monthStr))
-        const firstSlipAmount = pSlips.length > 0 ? pSlips[0].total_price || 0 : 0
-        rows.push([
+        rightNewPatients.push([
           p.name,
           p.referral_source || '',
           p.chief_complaint || '',
-          String(firstSlipAmount),
-          '', '', '' // 初回施術後・来院理由・備考は手入力用
+          '', '', '' // CVの有無・初回施術後・理由は手入力
         ])
       })
-    } else {
-      rows.push(['新規患者なし', '', '', '', '', '', ''])
+    }
+    // 空行を追加して左右の行数を揃える
+    const maxRows = Math.max(leftKpi.length, rightNewPatients.length)
+    while (leftKpi.length < maxRows) leftKpi.push(e(6))
+    while (rightNewPatients.length < maxRows) rightNewPatients.push(e(6))
+
+    for (let i = 0; i < maxRows; i++) {
+      rows.push(merge(leftKpi[i], rightNewPatients[i]))
     }
 
-    rows.push([], [])
+    rows.push(merge(e(6), e(6)))
 
-    // 既存患者売上リスト
-    const monthSlips = slips.filter(s => s.visit_date.startsWith(monthStr))
-    const existingPatientRevenue: Record<string, { name: string; revenue: number; source: string }> = {}
-    monthSlips.forEach(s => {
-      if (!s.patient_id || newIds.has(s.patient_id)) return
-      if (!existingPatientRevenue[s.patient_id]) {
-        const pat = patients.find(pp => pp.id === s.patient_id)
-        existingPatientRevenue[s.patient_id] = { name: s.patient_name || pat?.name || '', revenue: 0, source: pat?.referral_source || '' }
-      }
-      existingPatientRevenue[s.patient_id].revenue += (s.total_price || 0)
-    })
-
-    rows.push(['【既存患者売上】'])
-    rows.push(['氏名', '媒体', '売上', '備考'])
-    const existEntries = Object.values(existingPatientRevenue).sort((a, b) => b.revenue - a.revenue)
-    if (existEntries.length > 0) {
-      existEntries.forEach(e => {
-        rows.push([e.name, e.source, String(e.revenue), ''])
+    // ===========================
+    // セクション3: 左=広告媒体別 / 右=振り返り
+    // ===========================
+    const leftAd: string[][] = [
+      ['【広告媒体別実績】', '', '', '', '', ''],
+      ['媒体', '新規数', '問合せ', 'アクセス', '反応率', 'CV率', '費用', '売上', 'LTV', 'CPA', '利益LTV'],
+    ]
+    if (mchEntries.length > 0) {
+      mchEntries.forEach(([ch, data]) => {
+        leftAd.push([
+          ch, String(data.newPatients), '', '', '', '',
+          String(data.cost), '',
+          '', data.newPatients > 0 ? String(Math.round(data.cost / data.newPatients)) : '', ''
+        ])
       })
-      rows.push(['合計', '', String(d.existingRevenue), ''])
+      leftAd.push(['全広告費', '', '', '', '', '', String(totalMonthAd), '', '', '', ''])
     } else {
-      rows.push(['既存患者なし', '', '', ''])
+      leftAd.push(['（広告データなし）', '', '', '', '', '', '', '', '', '', ''])
     }
 
-    rows.push([], [])
+    // 振り返りは右に配置
+    const rightReview: string[][] = [
+      ['【振り返り】', '', '', '', '', ''],
+      ['', '', '', '', '', ''],
+      ['', '', '', '', '', ''],
+      ['', '', '', '', '', ''],
+      ['', '', '', '', '', ''],
+      ['', '', '', '', '', ''],
+    ]
+    const maxRows2 = Math.max(leftAd.length, rightReview.length)
+    while (leftAd.length < maxRows2) leftAd.push(e(11))
+    while (rightReview.length < maxRows2) rightReview.push(e(6))
 
-    // 振り返りメモ（手入力用空欄）
-    rows.push(['【振り返り・メモ】'])
-    rows.push(['目標に対しての振り返り', ''])
-    rows.push(['良かった点', ''])
-    rows.push(['改善点', ''])
-    rows.push(['来月のアクション', ''])
+    // 広告テーブルは11列あるので leftWidth を 11 に
+    for (let i = 0; i < maxRows2; i++) {
+      const padded = [...leftAd[i], ...e(Math.max(0, 12 - leftAd[i].length)), '', ...rightReview[i]]
+      rows.push(padded)
+    }
+
+    rows.push(e(13))
+
+    // ===========================
+    // セクション4: 左=既存患者売上 / 右=固定費・損益
+    // ===========================
+    const leftExist: string[][] = [
+      ['【既存患者売上一覧】', '', '', '', '', ''],
+      ['氏名', '媒体', '金額', '', '', ''],
+    ]
+    if (existEntries.length > 0) {
+      existEntries.forEach(ex => {
+        leftExist.push([ex.name, ex.source, String(ex.revenue), '', '', ''])
+      })
+      leftExist.push(['合計', '', String(d.existingRevenue), '', '', ''])
+    } else {
+      leftExist.push(['（既存患者なし）', '', '', '', '', ''])
+    }
+
+    const rightCost: string[][] = [
+      ['【固定費・損益】', '', '', '', '', ''],
+      ['項目', '金額', '', '', '', ''],
+      ['家賃', '', '', '', '', ''],
+      ['水道光熱費・通信費', '', '', '', '', ''],
+      ['セミナー・移動費', '', '', '', '', ''],
+      ['分割支払い', '', '', '', '', ''],
+      ['雑費', '', '', '', '', ''],
+      ['固定費合計', '', '', '', '', ''],
+      ['広告費', String(totalMonthAd || ''), '', '', '', ''],
+      ['純利益', '', '', '', '', ''],
+    ]
+
+    const maxRows3 = Math.max(leftExist.length, rightCost.length)
+    while (leftExist.length < maxRows3) leftExist.push(e(6))
+    while (rightCost.length < maxRows3) rightCost.push(e(6))
+
+    for (let i = 0; i < maxRows3; i++) {
+      rows.push(merge(leftExist[i], rightCost[i]))
+    }
+
+    rows.push(e(13))
+    rows.push(e(13))
+
+    // ===========================
+    // セクション5: 年間サマリーテーブル
+    // ===========================
+    rows.push(['【年間サマリー】'])
+    rows.push([
+      '月', '施術回数', 'カルテ枚数', '頻度', '新規数', '売上', '新規売上', '既存売上',
+      '広告費', '新規LTV', 'CPA', '利益LTV'
+    ])
+    monthlyData.forEach((md, i) => {
+      rows.push([
+        `${i + 1}月`, String(md.visitCount || ''), String(md.uniquePatients || ''),
+        md.frequency > 0 ? md.frequency.toFixed(1) : '', String(md.newPatients || ''),
+        String(md.revenue || ''), String(md.newRevenue || ''), String(md.existingRevenue || ''),
+        String(md.adCost || ''), md.ltv > 0 ? String(md.ltv) : '',
+        md.cpa !== null ? String(md.cpa) : '', md.profitLtv !== null ? String(md.profitLtv) : '',
+      ])
+    })
+    const yFreq = yearTotalUniquePatients > 0 ? (slips.length / yearTotalUniquePatients).toFixed(1) : ''
+    rows.push([
+      '合計', String(slips.length), String(yearTotalUniquePatients), yFreq,
+      String(yearNewPatients), String(totalRevenue), String(yearTotalNewRevenue || ''),
+      String(yearTotalExistingRevenue || ''), yearAdCost > 0 ? String(yearAdCost) : '',
+      yearAvgLtv > 0 ? String(yearAvgLtv) : '', yearAvgCpa !== null ? String(yearAvgCpa) : '',
+      yearProfitLtv !== null ? String(yearProfitLtv) : '',
+    ])
+
+    rows.push(e(12))
+
+    // ===========================
+    // セクション6: 年間KPIサマリー
+    // ===========================
+    rows.push(['【年間KPIサマリー】'])
+    rows.push(['累計売上', String(totalRevenue), '', '総施術回数', String(slips.length)])
+    rows.push(['総カルテ枚数', String(yearTotalUniquePatients), '', '総広告費', yearAdCost > 0 ? String(yearAdCost) : ''])
+    rows.push(['年間平均LTV', yearAvgLtv > 0 ? String(yearAvgLtv) : '', '', '年間平均CPA', yearAvgCpa !== null ? String(yearAvgCpa) : ''])
+    rows.push(['平均利益LTV', yearProfitLtv !== null ? String(yearProfitLtv) : '', '', '平均施術単価', String(avgRevenue)])
 
     downloadCsv(rows, `月間統計表_${selectedYear}年${selectedMonth}月.csv`)
   }
