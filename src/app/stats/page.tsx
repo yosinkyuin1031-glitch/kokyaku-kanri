@@ -305,31 +305,33 @@ export default function StatsPage() {
       <div className="px-4 py-4 max-w-6xl mx-auto space-y-4 print-container" ref={printRef}>
 
         {/* 期間選択 */}
-        <div className="flex gap-2 items-center flex-wrap no-print">
-          <div className="flex gap-2">
-            {[
-              { key: 'week', label: '直近1週間' },
-              { key: 'month', label: '今月' },
-              { key: 'year', label: '年間' },
-            ].map(p => (
-              <button
-                key={p.key}
-                onClick={() => setPeriod(p.key)}
-                className={`px-4 py-2 rounded-lg text-xs font-medium border transition-all ${
-                  period === p.key ? 'border-[#14252A] bg-[#14252A] text-white' : 'border-gray-200 text-gray-500'
-                }`}
-              >{p.label}</button>
-            ))}
+        <div className="no-print space-y-3">
+          <div className="flex gap-2 items-center flex-wrap">
+            <div className="flex gap-2">
+              {[
+                { key: 'week', label: '直近1週間' },
+                { key: 'month', label: '今月' },
+                { key: 'year', label: '年間' },
+              ].map(p => (
+                <button
+                  key={p.key}
+                  onClick={() => setPeriod(p.key)}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium border transition-all ${
+                    period === p.key ? 'border-[#14252A] bg-[#14252A] text-white' : 'border-gray-200 text-gray-500'
+                  }`}
+                >{p.label}</button>
+              ))}
+            </div>
+            {period === 'year' && (
+              <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                {years.map(y => <option key={y} value={y}>{y}年</option>)}
+              </select>
+            )}
           </div>
           {period === 'year' && (
-            <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-              {years.map(y => <option key={y} value={y}>{y}年</option>)}
-            </select>
-          )}
-          {period === 'year' && (
             <button onClick={handlePrint}
-              className="ml-auto px-4 py-2 border border-gray-300 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50">
+              className="w-full px-4 py-3 bg-[#14252A] text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-opacity">
               PDF出力 / 印刷
             </button>
           )}
