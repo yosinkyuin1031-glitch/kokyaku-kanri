@@ -40,6 +40,13 @@ export default function PatientDetailPage() {
       const { data: s } = await supabase.from('cm_slips').select('*').eq('clinic_id', clinicId).eq('patient_id', id).order('visit_date', { ascending: false })
       setSlips(s || [])
       setLoading(false)
+
+      // #slips ハッシュで来院履歴へスクロール
+      setTimeout(() => {
+        if (window.location.hash === '#slips') {
+          document.getElementById('slips-section')?.scrollIntoView({ behavior: 'smooth' })
+        }
+      }, 300)
     }
     load()
   }, [id])
@@ -375,7 +382,7 @@ export default function PatientDetailPage() {
 
         {/* 来院・売上履歴（cm_slips） */}
         {slips.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-4">
+          <div id="slips-section" className="bg-white rounded-xl shadow-sm p-4">
             <h3 className="font-bold text-gray-800 mb-3">来院・売上履歴 <span className="text-xs text-gray-400 font-normal">（全{visitCount}件）</span></h3>
 
             {/* 伝票編集モーダル */}
@@ -428,9 +435,9 @@ export default function PatientDetailPage() {
                     <label className="block text-xs text-gray-500 mb-1">支払方法</label>
                     <select value={slipForm.payment_method || '現金'} onChange={e => setSlipForm({...slipForm, payment_method: e.target.value})} className={inputClass}>
                       <option value="現金">現金</option>
-                      <option value="カード">カード</option>
-                      <option value="QR決済">QR決済</option>
-                      <option value="回数券">回数券</option>
+                      <option value="クレジットカード">クレジットカード</option>
+                      <option value="電子マネー">電子マネー</option>
+                      <option value="銀行振込">銀行振込</option>
                       <option value="その他">その他</option>
                     </select>
                   </div>

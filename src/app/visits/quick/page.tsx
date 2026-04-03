@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import AppShell from '@/components/AppShell'
@@ -10,6 +10,14 @@ import { findBestMatch, findAllMatches } from '@/lib/nameMatch'
 import type { PatientCandidate } from '@/lib/nameMatch'
 import { getClinicId } from '@/lib/clinic'
 
+const PAYMENT_OPTIONS = ['現金', 'クレジットカード', '電子マネー', '銀行振込', 'その他'] as const
+
+interface BaseMenu {
+  id: string
+  name: string
+  price: number
+}
+
 interface ParsedRecord {
   patient_id: string | null
   patient_name: string
@@ -18,8 +26,8 @@ interface ParsedRecord {
   total_price: number
   payment_method: string
   notes: string
-  _candidates?: { patient: PatientCandidate; score: number }[]  // 候補リスト
-  _showCandidates?: boolean  // 候補表示中かどうか
+  _candidates?: { patient: PatientCandidate; score: number }[]
+  _showCandidates?: boolean
 }
 
 export default function QuickInputPage() {
@@ -35,7 +43,17 @@ export default function QuickInputPage() {
   const [error, setError] = useState('')
   const [listening, setListening] = useState(false)
   const [allPatients, setAllPatients] = useState<PatientCandidate[]>([])
+  const [baseMenus, setBaseMenus] = useState<BaseMenu[]>([])
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+
+  // マスターメニュー取得
+  useEffect(() => {
+    const loadMenus = async () => {
+      const { data } = await supabase.from('cm_base_menus').select('id, name, price').eq('clinic_id', clinicId).eq('is_active', true).order('sort_order')
+      setBaseMenus(data || [])
+    }
+    loadMenus()
+  }, [])
 
   // 音声入力
   const toggleVoice = useCallback(() => {
@@ -76,6 +94,22 @@ export default function QuickInputPage() {
     setListening(true)
   }, [listening])
 
+  // 解析後にメニュー名をマスターとマッチングして料金自動入力
+  const matchMenuAndPrice = (records: ParsedRecord[]): ParsedRecord[] => {
+    return records.map(r => {
+      if (r.menu_name && baseMenus.length > 0) {
+        const normalized = r.menu_name.replace(/\s/g, '')
+        const match = baseMenus.find(m =>
+          m.name === r.menu_name || m.name.includes(normalized) || normalized.includes(m.name)
+        )
+        if (match) {
+          return { ...r, menu_name: match.name, total_price: r.total_price || match.price }
+        }
+      }
+      return r
+    })
+  }
+
   // テキスト解析
   const handleParse = async () => {
     if (!inputText.trim()) return
@@ -110,7 +144,7 @@ export default function QuickInputPage() {
             _showCandidates: needSelection && matches.length > 1,
           }
         })
-        setRecords(enriched)
+        setRecords(matchMenuAndPrice(enriched))
       }
     } catch {
       setError('通信エラーが発生しました')
@@ -375,17 +409,38 @@ export default function QuickInputPage() {
                     {/* メニュー */}
                     <div>
                       <label className="block text-[10px] text-gray-400">メニュー</label>
-                      <input type="text" value={r.menu_name}
-                        onChange={e => updateRecord(idx, 'menu_name', e.target.value)}
-                        className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
+                      {baseMenus.length > 0 ? (
+                        <select value={r.menu_name}
+                          onChange={e => {
+                            const menu = baseMenus.find(m => m.name === e.target.value)
+                            if (menu) {
+                              setRecords(prev => prev.map((rec, i) => i === idx ? { ...rec, menu_name: menu.name, total_price: rec.total_price || menu.price } : rec))
+                            } else {
+                              updateRecord(idx, 'menu_name', e.target.value)
+                            }
+                          }}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm">
+                          <option value="">選択</option>
+                          {baseMenus.map(m => <option key={m.id} value={m.name}>{m.name}（{m.price.toLocaleString()}円）</option>)}
+                          {r.menu_name && !baseMenus.find(m => m.name === r.menu_name) && (
+                            <option value={r.menu_name}>{r.menu_name}</option>
+                          )}
+                        </select>
+                      ) : (
+                        <input type="text" value={r.menu_name}
+                          onChange={e => updateRecord(idx, 'menu_name', e.target.value)}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
+                      )}
                     </div>
 
                     {/* 支払方法 */}
                     <div>
                       <label className="block text-[10px] text-gray-400">支払方法</label>
-                      <input type="text" value={r.payment_method}
+                      <select value={r.payment_method}
                         onChange={e => updateRecord(idx, 'payment_method', e.target.value)}
-                        className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
+                        className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm">
+                        {PAYMENT_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
                     </div>
                   </div>
 

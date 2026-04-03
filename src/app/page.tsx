@@ -130,17 +130,18 @@ export default function HomePage() {
               ) : (
                 <div className="space-y-2">
                   {todaySlips.map(s => (
-                    <Link key={s.id} href={`/patients/${s.patient_id}`} className="block border border-gray-100 rounded-lg p-3.5 hover:bg-gray-50 hover:shadow-sm">
+                    <div key={s.id} className="border border-gray-100 rounded-lg p-3.5 hover:bg-gray-50 hover:shadow-sm">
                       <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-bold text-sm">{s.patient_name}</p>
+                        <Link href={`/patients/${s.patient_id}`} className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-blue-700 hover:underline">{s.patient_name}</p>
                           <p className="text-xs text-gray-500 mt-0.5">{s.menu_name}</p>
-                        </div>
-                        <span className="text-xs font-semibold bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-100">
-                          {(s.total_price || 0).toLocaleString()}円
-                        </span>
+                        </Link>
+                        <Link href={`/patients/${s.patient_id}#slips`}
+                          className="text-xs font-semibold bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-100 hover:bg-green-100 transition-colors shrink-0 ml-2">
+                          {(s.total_price || 0).toLocaleString()}円 →
+                        </Link>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               )}

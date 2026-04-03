@@ -58,7 +58,7 @@ export const REFERRAL_SOURCES = [
 ] as const
 
 export const PAYMENT_METHODS = [
-  '現金', 'カード', 'QR決済', '回数券', 'その他'
+  '現金', 'クレジットカード', '電子マネー', '銀行振込', 'その他'
 ] as const
 
 export interface Reservation {
