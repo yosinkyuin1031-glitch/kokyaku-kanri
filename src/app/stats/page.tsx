@@ -275,111 +275,38 @@ export default function StatsPage() {
     window.print()
   }
 
-  // CSV生成共通関数
-  const downloadCsv = (rows: string[][], filename: string) => {
-    const BOM = '\uFEFF'
-    const csvContent = BOM + rows.map(row =>
-      row.map(cell => {
-        const str = String(cell)
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return `"${str.replace(/"/g, '""')}"`
-        }
-        return str
-      }).join(',')
-    ).join('\n')
+  const [exporting, setExporting] = useState(false)
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
-
-  // 年間スプレッドシート（CSV）出力
-  const handleCsvExport = () => {
-    const rows: string[][] = []
-
-    rows.push([`${selectedYear}年 年間統計表`])
-    rows.push([`出力日: ${new Date().toLocaleDateString('ja-JP')}`])
-    rows.push([])
-
-    rows.push([
-      '月', '施術回数', 'カルテ枚数', '来院頻度', '新規数', '売上', '売上目標', '達成率',
-      '新規売上', '既存売上', '施術単価', '広告費', 'CPA', '新規LTV', '利益LTV', 'ROAS',
-      '新規目標', '新規達成率', '備考'
-    ])
-
-    monthlyData.forEach((d, i) => {
-      const m = i + 1
-      const revPct = d.revenueGoal > 0 ? Math.round(d.revenue / d.revenueGoal * 100) : null
-      const newPct = d.newPatientGoal > 0 ? Math.round(d.newPatients / d.newPatientGoal * 100) : null
-      rows.push([
-        `${m}月`, String(d.visitCount || ''), String(d.uniquePatients || ''),
-        d.frequency > 0 ? d.frequency.toFixed(1) : '', String(d.newPatients || ''),
-        String(d.revenue || ''), String(d.revenueGoal || ''), revPct !== null ? `${revPct}%` : '',
-        String(d.newRevenue || ''), String(d.existingRevenue || ''), String(d.avgPrice || ''),
-        String(d.adCost || ''), d.cpa !== null ? String(d.cpa) : '',
-        d.ltv > 0 ? String(d.ltv) : '', d.profitLtv !== null ? String(d.profitLtv) : '',
-        d.roas !== null ? `${d.roas}%` : '', String(d.newPatientGoal || ''),
-        newPct !== null ? `${newPct}%` : '', '',
-      ])
-    })
-
-    const yearFreq = yearTotalUniquePatients > 0 ? (slips.length / yearTotalUniquePatients).toFixed(1) : ''
-    rows.push([
-      '合計/平均', String(slips.length), String(yearTotalUniquePatients), yearFreq,
-      String(yearNewPatients), String(totalRevenue),
-      yearRevenueGoal > 0 ? String(yearRevenueGoal) : '',
-      yearRevenueGoal > 0 ? `${Math.round(totalRevenue / yearRevenueGoal * 100)}%` : '',
-      String(yearTotalNewRevenue || ''), String(yearTotalExistingRevenue || ''),
-      String(avgRevenue), yearAdCost > 0 ? String(yearAdCost) : '',
-      yearAvgCpa !== null ? String(yearAvgCpa) : '',
-      yearAvgLtv > 0 ? String(yearAvgLtv) : '',
-      yearProfitLtv !== null ? String(yearProfitLtv) : '',
-      yearAdCost > 0 ? `${Math.round(totalRevenue / yearAdCost * 100)}%` : '',
-      yearNewPatientGoal > 0 ? String(yearNewPatientGoal) : '',
-      yearNewPatientGoal > 0 ? `${Math.round(yearNewPatients / yearNewPatientGoal * 100)}%` : '', '',
-    ])
-
-    rows.push([], [])
-    // 広告媒体別
-    rows.push(['【広告媒体別実績】'])
-    rows.push(['媒体', '広告費', '新規数', 'CPA'])
-    const chEntries = Object.entries(channelSummary).sort((a, b) => b[1].cost - a[1].cost)
-    if (chEntries.length > 0) {
-      chEntries.forEach(([ch, data]) => {
-        rows.push([ch, String(data.cost), String(data.newPatients), data.newPatients > 0 ? String(Math.round(data.cost / data.newPatients)) : ''])
-      })
-      rows.push(['合計', String(yearAdCost), '', ''])
+  // Excel出力
+  const handleExcelExport = async (monthOnly?: number) => {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams({ year: String(selectedYear), clinic_id: clinicId })
+      if (monthOnly) params.set('month', String(monthOnly))
+      const res = await fetch(`/api/export-stats?${params}`)
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      const filename = monthOnly ? `月間統計表_${selectedYear}年${monthOnly}月.xlsx` : `年間統計表_${selectedYear}年.xlsx`
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      alert('エクスポートに失敗しました')
     }
-
-    rows.push([], [])
-    rows.push(['【患者ステータス】'])
-    rows.push(['ステータス', '人数'])
-    rows.push(['通院中', String(statusCounts.active)])
-    rows.push(['休止', String(statusCounts.inactive)])
-    rows.push(['卒業', String(statusCounts.completed)])
-
-    rows.push([], [])
-    rows.push(['【来院経路】'])
-    rows.push(['経路', '人数', '割合'])
-    referralSorted.forEach(([source, count]) => {
-      rows.push([source, String(count), `${patients.length > 0 ? Math.round(count / patients.length * 100) : 0}%`])
-    })
-
-    downloadCsv(rows, `年間統計表_${selectedYear}年.csv`)
+    setExporting(false)
   }
 
-  // 単月スプレッドシート（CSV）出力 - 元スプレッドシート形式
-  const handleMonthlyCsvExport = () => {
+  if (false as boolean) {
     const mIdx = selectedMonth - 1
     const d = monthlyData[mIdx]
     const monthStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`
     const rows: string[][] = []
+    const downloadCsv = (r: string[][], f: string) => { console.log(r, f) }
 
     // --- データ準備 ---
     const newIds = newPatientIdsByMonth[monthStr] || new Set()
@@ -654,9 +581,11 @@ export default function StatsPage() {
             )}
           </div>
           <div className="flex gap-2">
-            <button onClick={period === 'year' ? handleCsvExport : handleMonthlyCsvExport}
-              className="flex-1 px-4 py-3 bg-[#14252A] text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-opacity">
-              {period === 'year' ? `${selectedYear}年 年間CSV出力` : `${selectedYear}年${selectedMonth}月 CSV出力`}
+            <button
+              onClick={() => handleExcelExport(period === 'month' ? selectedMonth : undefined)}
+              disabled={exporting}
+              className="flex-1 px-4 py-3 bg-[#14252A] text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50">
+              {exporting ? '出力中...' : period === 'year' ? `${selectedYear}年 スプレッドシート出力` : `${selectedYear}年${selectedMonth}月 スプレッドシート出力`}
             </button>
             <button onClick={handlePrint}
               className="px-4 py-3 border-2 border-gray-300 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition-colors">
