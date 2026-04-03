@@ -8,6 +8,7 @@ const mainTabs = [
   { key: 'home', href: '/', label: 'ホーム', icon: '🏠' },
   { key: 'patients', href: '/patients', label: '顧客管理', icon: '👥' },
   { key: 'sales', href: '/sales', label: '営業データ', icon: '📊' },
+  { key: 'stats', href: '/stats', label: '月間統計', icon: '📋' },
   { key: 'master', href: '/master', label: 'マスター', icon: '⚙️' },
 ]
 
@@ -16,6 +17,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   const activeTab = pathname.startsWith('/master') ? 'master'
+    : pathname.startsWith('/stats') ? 'stats'
     : pathname.startsWith('/patients') ? 'patients'
     : pathname.startsWith('/sales') || pathname.startsWith('/visits') ? 'sales'
     : 'home'
