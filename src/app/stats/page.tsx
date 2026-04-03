@@ -274,6 +274,156 @@ export default function StatsPage() {
     window.print()
   }
 
+  // スプレッドシート（CSV）出力
+  const handleCsvExport = () => {
+    const BOM = '\uFEFF'
+    const rows: string[][] = []
+
+    // ヘッダー
+    rows.push([`${selectedYear}年 月間統計表`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+    rows.push([`出力日: ${new Date().toLocaleDateString('ja-JP')}`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+    rows.push([])
+
+    // 月別データテーブル
+    rows.push([
+      '月', '施術回数', 'カルテ枚数', '来院頻度', '新規数', '売上', '売上目標', '達成率',
+      '新規売上', '既存売上', '施術単価', '広告費', 'CPA', '新規LTV', '利益LTV', 'ROAS',
+      '新規目標', '新規達成率', '備考'
+    ])
+
+    monthlyData.forEach((d, i) => {
+      const m = i + 1
+      const revPct = d.revenueGoal > 0 ? Math.round(d.revenue / d.revenueGoal * 100) : null
+      const newPct = d.newPatientGoal > 0 ? Math.round(d.newPatients / d.newPatientGoal * 100) : null
+      rows.push([
+        `${m}月`,
+        String(d.visitCount || ''),
+        String(d.uniquePatients || ''),
+        d.frequency > 0 ? d.frequency.toFixed(1) : '',
+        String(d.newPatients || ''),
+        String(d.revenue || ''),
+        String(d.revenueGoal || ''),
+        revPct !== null ? `${revPct}%` : '',
+        String(d.newRevenue || ''),
+        String(d.existingRevenue || ''),
+        String(d.avgPrice || ''),
+        String(d.adCost || ''),
+        d.cpa !== null ? String(d.cpa) : '',
+        d.ltv > 0 ? String(d.ltv) : '',
+        d.profitLtv !== null ? String(d.profitLtv) : '',
+        d.roas !== null ? `${d.roas}%` : '',
+        String(d.newPatientGoal || ''),
+        newPct !== null ? `${newPct}%` : '',
+        '', // 備考（手入力用）
+      ])
+    })
+
+    // 合計行
+    const yearFreq = yearTotalUniquePatients > 0 ? (slips.length / yearTotalUniquePatients).toFixed(1) : ''
+    rows.push([
+      '合計/平均',
+      String(slips.length),
+      String(yearTotalUniquePatients),
+      yearFreq,
+      String(yearNewPatients),
+      String(totalRevenue),
+      yearRevenueGoal > 0 ? String(yearRevenueGoal) : '',
+      yearRevenueGoal > 0 ? `${Math.round(totalRevenue / yearRevenueGoal * 100)}%` : '',
+      String(yearTotalNewRevenue || ''),
+      String(yearTotalExistingRevenue || ''),
+      String(avgRevenue),
+      yearAdCost > 0 ? String(yearAdCost) : '',
+      yearAvgCpa !== null ? String(yearAvgCpa) : '',
+      yearAvgLtv > 0 ? String(yearAvgLtv) : '',
+      yearProfitLtv !== null ? String(yearProfitLtv) : '',
+      yearAdCost > 0 ? `${Math.round(totalRevenue / yearAdCost * 100)}%` : '',
+      yearNewPatientGoal > 0 ? String(yearNewPatientGoal) : '',
+      yearNewPatientGoal > 0 ? `${Math.round(yearNewPatients / yearNewPatientGoal * 100)}%` : '',
+      '',
+    ])
+
+    rows.push([])
+    rows.push([])
+
+    // 広告媒体別セクション
+    rows.push(['【広告媒体別実績】'])
+    rows.push(['媒体', '広告費', '新規数', 'CPA', ''])
+    const channelEntries = Object.entries(channelSummary).sort((a, b) => b[1].cost - a[1].cost)
+    if (channelEntries.length > 0) {
+      channelEntries.forEach(([ch, data]) => {
+        rows.push([
+          ch,
+          String(data.cost),
+          String(data.newPatients),
+          data.newPatients > 0 ? String(Math.round(data.cost / data.newPatients)) : '',
+          '',
+        ])
+      })
+      rows.push(['合計', String(yearAdCost), '', '', ''])
+    } else {
+      rows.push(['データなし', '', '', '', ''])
+    }
+
+    rows.push([])
+    rows.push([])
+
+    // 患者ステータス
+    rows.push(['【患者ステータス】'])
+    rows.push(['ステータス', '人数'])
+    rows.push(['通院中', String(statusCounts.active)])
+    rows.push(['休止', String(statusCounts.inactive)])
+    rows.push(['卒業', String(statusCounts.completed)])
+    rows.push(['合計', String(statusCounts.active + statusCounts.inactive + statusCounts.completed)])
+
+    rows.push([])
+    rows.push([])
+
+    // 来院経路
+    rows.push(['【来院経路】'])
+    rows.push(['経路', '人数', '割合'])
+    referralSorted.forEach(([source, count]) => {
+      const pct = patients.length > 0 ? Math.round(count / patients.length * 100) : 0
+      rows.push([source, String(count), `${pct}%`])
+    })
+
+    rows.push([])
+    rows.push([])
+
+    // 年間KPIサマリー
+    rows.push(['【年間KPIサマリー】'])
+    rows.push(['項目', '値'])
+    rows.push(['累計売上', `${totalRevenue}`])
+    rows.push(['総カルテ枚数', `${yearTotalUniquePatients}`])
+    rows.push(['総施術回数', `${slips.length}`])
+    rows.push(['平均施術単価', `${avgRevenue}`])
+    rows.push(['新規患者数', `${yearNewPatients}`])
+    rows.push(['年間平均LTV', yearAvgLtv > 0 ? `${yearAvgLtv}` : ''])
+    rows.push(['総広告費', yearAdCost > 0 ? `${yearAdCost}` : ''])
+    rows.push(['年間平均CPA', yearAvgCpa !== null ? `${yearAvgCpa}` : ''])
+    rows.push(['平均利益LTV', yearProfitLtv !== null ? `${yearProfitLtv}` : ''])
+
+    // CSV生成
+    const csvContent = BOM + rows.map(row =>
+      row.map(cell => {
+        const str = String(cell)
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`
+        }
+        return str
+      }).join(',')
+    ).join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `月間統計表_${selectedYear}年.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <AppShell>
       <Header title="統計" />
@@ -330,10 +480,16 @@ export default function StatsPage() {
             )}
           </div>
           {period === 'year' && (
-            <button onClick={handlePrint}
-              className="w-full px-4 py-3 bg-[#14252A] text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-opacity">
-              PDF出力 / 印刷
-            </button>
+            <div className="flex gap-2">
+              <button onClick={handleCsvExport}
+                className="flex-1 px-4 py-3 bg-[#14252A] text-white rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-opacity">
+                スプレッドシート出力（CSV）
+              </button>
+              <button onClick={handlePrint}
+                className="px-4 py-3 border-2 border-gray-300 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition-colors">
+                印刷
+              </button>
+            </div>
           )}
         </div>
 
