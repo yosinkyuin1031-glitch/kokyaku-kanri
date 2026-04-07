@@ -282,6 +282,32 @@ export default function RepeatPage() {
           </div>
         </div>
 
+        {/* N回リピート率 */}
+        {patientRepeats.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
+            <h3 className="font-bold text-gray-800 text-sm mb-3">回数別リピート率</h3>
+            <p className="text-xs text-gray-400 mb-3">全{patientRepeats.length}人中、N回以上来院した患者の割合</p>
+            <div className="space-y-2">
+              {Array.from({ length: 9 }, (_, i) => i + 2).map(n => {
+                const count = patientRepeats.filter(p => p.visitCount >= n).length
+                const rate = patientRepeats.length > 0 ? Math.round((count / patientRepeats.length) * 100) : 0
+                return (
+                  <div key={n} className="flex items-center gap-2">
+                    <span className="text-xs font-medium w-16 text-right" style={{ color: '#14252A' }}>{n}回以上</span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-6 relative">
+                      <div className="h-6 rounded-full flex items-center justify-between px-2"
+                        style={{ width: `${Math.max(rate, 3)}%`, background: rate >= 50 ? '#14252A' : rate >= 30 ? '#2d4a5a' : '#6b8a9a', minWidth: '40px', transition: 'width 0.3s' }}>
+                        <span className="text-white text-[10px] font-bold">{count}人</span>
+                        <span className="text-white text-[10px] font-bold">{rate}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* 来院回数分布 */}
         {viewMode === 'patient' && patientRepeats.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
