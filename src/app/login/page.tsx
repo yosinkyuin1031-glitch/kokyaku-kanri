@@ -29,7 +29,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'linear-gradient(135deg, #14252A 0%, #1a3a42 100%)' }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white">顧客管理シート</h1>
+          <h1 className="text-2xl font-bold text-white">Clinic Core</h1>
           <p className="text-gray-300 text-sm mt-1">治療院向け顧客管理システム</p>
         </div>
 

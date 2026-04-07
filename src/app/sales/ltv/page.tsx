@@ -11,12 +11,23 @@ import { getClinicId } from '@/lib/clinic'
 interface PatientLTV {
   id: string
   name: string
+  age: number | null
   visitCount: number
   ltv: number
   avgPrice: number
   firstVisit: string
   lastVisit: string
   daysSince: number | null
+}
+
+function calcAge(birthDate: string | null): number | null {
+  if (!birthDate) return null
+  const birth = new Date(birthDate)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+  return age
 }
 
 interface SlipRow {
@@ -29,6 +40,7 @@ interface SlipRow {
 interface PatientRow {
   id: string
   name: string
+  birth_date: string | null
   ltv: number | null
   visit_count: number | null
   first_visit_date: string | null
@@ -69,7 +81,7 @@ export default function LtvPage() {
         fetchAllSlips(supabase, 'patient_id, patient_name, visit_date, total_price') as Promise<SlipRow[]>,
         supabase
           .from('cm_patients')
-          .select('id, name, ltv, visit_count, first_visit_date, last_visit_date')
+          .select('id, name, birth_date, ltv, visit_count, first_visit_date, last_visit_date')
           .eq('clinic_id', clinicId)
       ])
       setPatientData(patients || [])
@@ -117,6 +129,7 @@ export default function LtvPage() {
           return {
             id: p.id,
             name: p.name,
+            age: calcAge(p.birth_date),
             visitCount,
             ltv,
             avgPrice: visitCount > 0 ? Math.round(ltv / visitCount) : 0,
@@ -133,7 +146,8 @@ export default function LtvPage() {
     const { from, to } = getDateRange(period, customFrom, customTo)
 
     const nameMap: Record<string, string> = {}
-    patientData.forEach(p => { nameMap[p.id] = p.name })
+    const birthMap: Record<string, string | null> = {}
+    patientData.forEach(p => { nameMap[p.id] = p.name; birthMap[p.id] = p.birth_date })
 
     const filtered = allSlips.filter(s => {
       if (!s.patient_id) return false
@@ -162,6 +176,7 @@ export default function LtvPage() {
       .map(([id, d]): PatientLTV => ({
         id,
         name: d.name,
+        age: calcAge(birthMap[id] || null),
         visitCount: d.count,
         ltv: d.revenue,
         avgPrice: d.count > 0 ? Math.round(d.revenue / d.count) : 0,
@@ -277,6 +292,7 @@ export default function LtvPage() {
                   <p className="font-bold text-sm" style={{ color: '#14252A' }}>{p.ltv.toLocaleString()}円</p>
                 </div>
                 <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                  {p.age !== null && <span>{p.age}歳</span>}
                   <span>{p.visitCount}回</span>
                   <span>平均{p.avgPrice.toLocaleString()}円</span>
                   <span>{p.firstVisit}〜</span>
@@ -292,6 +308,7 @@ export default function LtvPage() {
                 <tr className="bg-gray-50 border-b">
                   <th className="text-left px-3 py-2 text-xs text-gray-500">#</th>
                   <th className="text-left px-3 py-2 text-xs text-gray-500">患者名</th>
+                  <th className="text-right px-3 py-2 text-xs text-gray-500">年齢</th>
                   <th className="text-right px-3 py-2 text-xs text-gray-500">来院数</th>
                   <th className="text-right px-3 py-2 text-xs text-gray-500">総売上</th>
                   <th className="text-right px-3 py-2 text-xs text-gray-500">平均単価</th>
@@ -307,6 +324,7 @@ export default function LtvPage() {
                     <td className="px-3 py-2 font-medium">
                       <Link href={`/patients/${p.id}`} className="text-blue-600 hover:underline">{p.name}</Link>
                     </td>
+                    <td className="px-3 py-2 text-right text-xs">{p.age !== null ? `${p.age}歳` : '-'}</td>
                     <td className="px-3 py-2 text-right">{p.visitCount}回</td>
                     <td className="px-3 py-2 text-right font-medium">{p.ltv.toLocaleString()}円</td>
                     <td className="px-3 py-2 text-right">{p.avgPrice.toLocaleString()}円</td>

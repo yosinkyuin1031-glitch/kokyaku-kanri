@@ -21,6 +21,7 @@ interface RepeatData {
 interface PatientRepeat {
   id: string
   name: string
+  age: number | null
   visitCount: number
   totalRevenue: number
   firstVisit: string
@@ -71,13 +72,24 @@ export default function RepeatPage() {
 
       const { data: patients } = await supabase
         .from('cm_patients')
-        .select('id, name')
+        .select('id, name, birth_date')
         .eq('clinic_id', clinicId)
 
       if (!allVisits || allVisits.length === 0 || !patients) { setData([]); setPatientRepeats([]); setLoading(false); return }
 
       const patientNameMap: Record<string, string> = {}
-      patients.forEach(p => { patientNameMap[p.id] = p.name })
+      const patientBirthMap: Record<string, string | null> = {}
+      patients.forEach(p => { patientNameMap[p.id] = p.name; patientBirthMap[p.id] = p.birth_date })
+
+      const calcAge = (bd: string | null): number | null => {
+        if (!bd) return null
+        const birth = new Date(bd)
+        const today = new Date()
+        let age = today.getFullYear() - birth.getFullYear()
+        const m = today.getMonth() - birth.getMonth()
+        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+        return age
+      }
 
       // 初回来院月を全期間から取得
       const firstVisitMonth: Record<string, string> = {}
@@ -140,6 +152,7 @@ export default function RepeatPage() {
         .map(([id, d]) => ({
           id,
           name: patientNameMap[id] || '不明',
+          age: calcAge(patientBirthMap[id] || null),
           visitCount: d.count,
           totalRevenue: d.revenue,
           firstVisit: d.first,
@@ -310,6 +323,7 @@ export default function RepeatPage() {
                   <span className="font-bold text-sm" style={{ color: '#14252A' }}>{p.visitCount}回</span>
                 </div>
                 <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                  {p.age !== null && <span>{p.age}歳</span>}
                   <span>{p.totalRevenue.toLocaleString()}円</span>
                   <span>初回{p.firstVisit}</span>
                 </div>
@@ -323,6 +337,7 @@ export default function RepeatPage() {
                 <tr className="bg-gray-50 border-b">
                   <th className="text-left px-3 py-2 text-xs text-gray-500">#</th>
                   <th className="text-left px-3 py-2 text-xs text-gray-500">患者名</th>
+                  <th className="text-right px-3 py-2 text-xs text-gray-500">年齢</th>
                   <th className="text-right px-3 py-2 text-xs text-gray-500">来院回数</th>
                   <th className="text-right px-3 py-2 text-xs text-gray-500">総売上</th>
                   <th className="text-left px-3 py-2 text-xs text-gray-500">初回</th>
@@ -336,6 +351,7 @@ export default function RepeatPage() {
                     <td className="px-3 py-2">
                       <Link href={`/patients/${p.id}`} className="text-blue-600 hover:underline font-medium">{p.name}</Link>
                     </td>
+                    <td className="px-3 py-2 text-right text-xs">{p.age !== null ? `${p.age}歳` : '-'}</td>
                     <td className="px-3 py-2 text-right font-bold">{p.visitCount}回</td>
                     <td className="px-3 py-2 text-right">{p.totalRevenue.toLocaleString()}円</td>
                     <td className="px-3 py-2 text-xs text-gray-500">{p.firstVisit}</td>

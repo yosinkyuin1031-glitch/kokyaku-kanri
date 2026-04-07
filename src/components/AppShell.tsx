@@ -29,7 +29,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-12">
             <Link href="/" className="font-bold text-sm flex items-center gap-1.5">
-                顧客管理シート
+                Clinic Core
               </Link>
             <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-white text-xl">☰</button>
           </div>

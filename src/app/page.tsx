@@ -75,7 +75,7 @@ export default function HomePage() {
 
   return (
     <AppShell>
-      <Header title="顧客管理シート" />
+      <Header title="Clinic Core" />
       <div className="px-4 py-5 max-w-lg mx-auto">
 
         {/* 統計カード */}

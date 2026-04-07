@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: 'jpy',
             product_data: {
-              name: `顧客管理シート ${planInfo.name}プラン`,
+              name: `Clinic Core ${planInfo.name}プラン`,
               description: planInfo.description,
             },
             unit_amount: planInfo.price,

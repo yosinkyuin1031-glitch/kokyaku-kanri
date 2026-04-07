@@ -16,7 +16,17 @@ interface PatientWithStats extends Patient {
   calcDaysSince: number | null
 }
 
-type SortKey = 'name' | 'gender' | 'chief_complaint' | 'referral_source' | 'line_count' | 'ltv' | 'last_visit' | 'days_since'
+type SortKey = 'name' | 'gender' | 'age' | 'chief_complaint' | 'referral_source' | 'line_count' | 'ltv' | 'last_visit' | 'days_since'
+
+function calcAge(birthDate: string | null): number | null {
+  if (!birthDate) return null
+  const birth = new Date(birthDate)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+  return age
+}
 
 export default function PatientsPage() {
   const supabase = createClient()
@@ -125,6 +135,9 @@ export default function PatientsPage() {
           break
         case 'gender':
           cmp = (a.gender || '').localeCompare(b.gender || '')
+          break
+        case 'age':
+          cmp = (calcAge(a.birth_date) ?? -1) - (calcAge(b.birth_date) ?? -1)
           break
         case 'chief_complaint':
           cmp = (a.chief_complaint || '').localeCompare(b.chief_complaint || '', 'ja')
@@ -317,6 +330,7 @@ export default function PatientsPage() {
                   <tr className="bg-gray-50 border-b">
                     <SortHeader label="氏名" sortId="name" className="text-left" />
                     <SortHeader label="性別" sortId="gender" className="text-left" />
+                    <SortHeader label="年齢" sortId="age" className="text-right" />
                     <SortHeader label="症状" sortId="chief_complaint" className="text-left" />
                     <SortHeader label="来院経路" sortId="referral_source" className="text-left" />
                     <th className="px-3 py-2.5 text-xs text-gray-500 text-right cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort('line_count')}>
@@ -337,6 +351,7 @@ export default function PatientsPage() {
                         {p.furigana && <p className="text-xs text-gray-400">{p.furigana}</p>}
                       </td>
                       <td className="px-3 py-3 text-xs">{p.gender}</td>
+                      <td className="px-3 py-3 text-xs text-right">{calcAge(p.birth_date) !== null ? `${calcAge(p.birth_date)}歳` : '-'}</td>
                       <td className="px-3 py-3 text-xs text-gray-600 truncate max-w-[120px]">{p.chief_complaint || '-'}</td>
                       <td className="px-3 py-3 text-xs">{p.referral_source || '-'}</td>
                       <td className="px-3 py-3 text-right text-xs">{p.line_count > 0 ? `${p.line_count}回` : '-'}</td>
@@ -380,6 +395,7 @@ export default function PatientsPage() {
                       </div>
                       <div className="flex gap-3 mt-1 text-xs text-gray-500">
                         <span>{p.gender}</span>
+                        {calcAge(p.birth_date) !== null && <span>{calcAge(p.birth_date)}歳</span>}
                         {p.chief_complaint && <span className="truncate">{p.chief_complaint}</span>}
                       </div>
                     </div>
