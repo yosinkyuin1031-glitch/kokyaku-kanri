@@ -48,7 +48,8 @@ function getAgeGroup(birthDate: string | null): string {
   if (age < 60) return '50代'
   if (age < 70) return '60代'
   if (age < 80) return '70代'
-  return '80歳以上'
+  if (age < 90) return '80代'
+  return '90代'
 }
 
 function getStatusLabel(status: string): string {
