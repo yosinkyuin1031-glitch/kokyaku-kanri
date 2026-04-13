@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
@@ -72,10 +71,7 @@ export default function LoginPage() {
           </button>
 
           <p className="text-center text-sm text-gray-500 mt-2">
-            アカウントをお持ちでない方は{' '}
-            <Link href="/signup" className="text-blue-600 font-medium hover:underline">
-              アカウントを作成
-            </Link>
+            ※ アカウント作成・パスワード再発行は管理者にお問い合わせください
           </p>
         </form>
       </div>
