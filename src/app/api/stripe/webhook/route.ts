@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import type Stripe from 'stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+/**
+ * Webhook用のSupabaseクライアント（Service Role Key）
+ * Webhookリクエストにはユーザーセッションがないため、
+ * RLSをバイパスするservice_role_keyが必要
+ */
+function getServiceClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
@@ -24,7 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  const supabase = getServiceClient()
 
   try {
     switch (event.type) {

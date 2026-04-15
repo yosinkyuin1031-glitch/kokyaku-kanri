@@ -31,7 +31,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Link href="/" className="font-bold text-sm flex items-center gap-1.5">
                 Clinic Core
               </Link>
-            <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-white text-xl">☰</button>
+            <div className="flex items-center gap-3">
+              <Link href="/help" className="text-xs text-gray-300 hover:text-white transition hidden md:inline">ヘルプ</Link>
+              <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-white text-xl">☰</button>
+            </div>
           </div>
           {/* タブ（PC） */}
           <nav className="hidden md:flex gap-1 -mb-px">
@@ -67,6 +70,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <span className="mr-2">{tab.icon}</span>{tab.label}
             </Link>
           ))}
+          <Link href="/help" onClick={() => setMenuOpen(false)}
+            className="block px-4 py-3 text-sm border-b border-gray-100 text-gray-600">
+            <span className="mr-2">❓</span>ヘルプ
+          </Link>
         </div>
       )}
 

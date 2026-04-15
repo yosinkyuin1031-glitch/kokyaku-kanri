@@ -328,6 +328,7 @@ export default function PatientsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b">
+                    <th className="px-2 py-2.5 text-xs text-gray-400 font-semibold text-center w-10">#</th>
                     <SortHeader label="氏名" sortId="name" className="text-left" />
                     <SortHeader label="性別" sortId="gender" className="text-left" />
                     <SortHeader label="年齢" sortId="age" className="text-right" />
@@ -344,6 +345,7 @@ export default function PatientsPage() {
                 <tbody>
                   {filtered.map((p, idx) => (
                     <tr key={p.id} className={`border-b hover:bg-blue-50/40 cursor-pointer ${idx % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                      <td className="px-2 py-3 text-center text-xs text-gray-400 font-medium">{idx + 1}</td>
                       <td className="px-3 py-3">
                         <Link href={`/patients/${p.id}`} className="text-blue-600 hover:underline font-medium">
                           {p.name}
@@ -375,7 +377,7 @@ export default function PatientsPage() {
 
             {/* モバイル: カード */}
             <div className="md:hidden space-y-2">
-              {filtered.map(p => (
+              {filtered.map((p, idx) => (
                 <Link key={p.id} href={`/patients/${p.id}`} className={`block bg-white rounded-xl shadow-sm p-3.5 hover:shadow-md transition-shadow border-l-4 ${
                   p.status === 'active' ? 'border-l-green-500' :
                   p.status === 'completed' ? 'border-l-blue-500' :
@@ -384,7 +386,8 @@ export default function PatientsPage() {
                   <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-bold text-gray-800">{p.name}</p>
+                        <span className="text-xs text-gray-400 font-medium mr-1">{idx + 1}.</span>
+                      <p className="font-bold text-gray-800">{p.name}</p>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                           p.status === 'active' ? 'bg-green-50 text-green-700' :
                           p.status === 'completed' ? 'bg-blue-50 text-blue-700' :

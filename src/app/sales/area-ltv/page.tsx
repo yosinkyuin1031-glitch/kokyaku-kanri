@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import AppShell from '@/components/AppShell'
 import { createClient } from '@/lib/supabase/client'
@@ -16,6 +16,7 @@ interface AreaData {
   totalVisits: number
   avgVisits: number
   topPatients: { name: string; ltv: number }[]
+  referralBreakdown: { source: string; count: number; ltv: number }[]
 }
 
 type SortKey = 'totalLTV' | 'patientCount' | 'avgLTV' | 'avgVisits'
@@ -34,14 +35,14 @@ export default function AreaLtvPage() {
 
       // Fetch patients with LTV data directly
       const PAGE_SIZE = 1000
-      let allPatients: { id: string; name: string; city: string; prefecture: string; ltv: number; visit_count: number }[] = []
+      let allPatients: { id: string; name: string; city: string; prefecture: string; ltv: number; visit_count: number; referral_source: string | null }[] = []
       let offset = 0
       let hasMore = true
 
       while (hasMore) {
         const { data, error } = await supabase
           .from('cm_patients')
-          .select('id, name, city, prefecture, ltv, visit_count')
+          .select('id, name, city, prefecture, ltv, visit_count, referral_source')
           .eq('clinic_id', clinicId)
           .order('id', { ascending: true })
           .range(offset, offset + PAGE_SIZE - 1)
@@ -63,18 +64,26 @@ export default function AreaLtvPage() {
         patients: { name: string; ltv: number }[]
         totalLTV: number
         totalVisits: number
+        referralMap: Record<string, { count: number; ltv: number }>
       }> = {}
 
       allPatients.forEach(p => {
         const area = p.city || p.prefecture || '不明'
         if (!areaMap[area]) {
-          areaMap[area] = { prefecture: p.prefecture || '不明', patients: [], totalLTV: 0, totalVisits: 0 }
+          areaMap[area] = { prefecture: p.prefecture || '不明', patients: [], totalLTV: 0, totalVisits: 0, referralMap: {} }
         }
         const ltv = p.ltv || 0
         const visits = p.visit_count || 0
         areaMap[area].patients.push({ name: p.name, ltv })
         areaMap[area].totalLTV += ltv
         areaMap[area].totalVisits += visits
+
+        const source = p.referral_source || '不明'
+        if (!areaMap[area].referralMap[source]) {
+          areaMap[area].referralMap[source] = { count: 0, ltv: 0 }
+        }
+        areaMap[area].referralMap[source].count++
+        areaMap[area].referralMap[source].ltv += ltv
       })
 
       const result: AreaData[] = Object.entries(areaMap).map(([area, d]) => ({
@@ -86,6 +95,9 @@ export default function AreaLtvPage() {
         totalVisits: d.totalVisits,
         avgVisits: d.patients.length > 0 ? Math.round((d.totalVisits / d.patients.length) * 10) / 10 : 0,
         topPatients: d.patients.sort((a, b) => b.ltv - a.ltv).slice(0, 5),
+        referralBreakdown: Object.entries(d.referralMap)
+          .map(([source, v]) => ({ source, count: v.count, ltv: v.ltv }))
+          .sort((a, b) => b.count - a.count),
       }))
 
       setAreas(result)
@@ -109,6 +121,21 @@ export default function AreaLtvPage() {
 
   // Best performing area
   const bestAvgArea = [...areas].sort((a, b) => b.avgLTV - a.avgLTV).find(a => a.patientCount >= 3)
+
+  // Overall referral breakdown
+  const overallReferral: Record<string, { count: number; ltv: number }> = {}
+  areas.forEach(a => {
+    a.referralBreakdown.forEach(r => {
+      if (!overallReferral[r.source]) overallReferral[r.source] = { count: 0, ltv: 0 }
+      overallReferral[r.source].count += r.count
+      overallReferral[r.source].ltv += r.ltv
+    })
+  })
+  const referralList = Object.entries(overallReferral)
+    .map(([source, v]) => ({ source, count: v.count, ltv: v.ltv }))
+    .sort((a, b) => b.count - a.count)
+
+  const REFERRAL_COLORS = ['#14252A', '#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#be185d']
 
   return (
     <AppShell>
@@ -204,6 +231,23 @@ export default function AreaLtvPage() {
               </div>
             </div>
 
+            {/* Referral Summary */}
+            {referralList.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
+                <h3 className="text-sm font-bold text-gray-700 mb-3">媒体別 集客内訳</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {referralList.map((r, i) => (
+                    <div key={r.source} className="rounded-lg p-2 border" style={{ borderLeftWidth: 3, borderLeftColor: REFERRAL_COLORS[i % REFERRAL_COLORS.length] }}>
+                      <p className="text-xs font-medium truncate">{r.source}</p>
+                      <p className="text-sm font-bold">{r.count}人</p>
+                      <p className="text-[10px] text-gray-500">LTV合計 {r.ltv.toLocaleString()}円</p>
+                      <p className="text-[10px] text-gray-400">平均 {r.count > 0 ? Math.round(r.ltv / r.count).toLocaleString() : 0}円</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Mobile cards */}
             <div className="sm:hidden space-y-2">
               {sorted.map((a, i) => (
@@ -222,15 +266,30 @@ export default function AreaLtvPage() {
                     <span>平均{a.avgLTV.toLocaleString()}円</span>
                     <span>来院{a.avgVisits}回</span>
                   </div>
-                  {expandedArea === a.area && a.topPatients.length > 0 && (
-                    <div className="border-t mt-2 pt-2 space-y-1">
-                      <p className="text-[10px] text-gray-400">LTV上位</p>
-                      {a.topPatients.map((p, j) => (
-                        <div key={j} className="flex justify-between text-xs">
-                          <span>{p.name}</span>
-                          <span className="text-gray-500">{p.ltv.toLocaleString()}円</span>
+                  {expandedArea === a.area && (
+                    <div className="border-t mt-2 pt-2 space-y-2">
+                      {a.referralBreakdown.length > 0 && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 mb-1">媒体別内訳</p>
+                          {a.referralBreakdown.map((r, j) => (
+                            <div key={j} className="flex justify-between text-xs">
+                              <span style={{ color: REFERRAL_COLORS[j % REFERRAL_COLORS.length] }}>{r.source}</span>
+                              <span className="text-gray-500">{r.count}人 / {r.ltv.toLocaleString()}円</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
+                      {a.topPatients.length > 0 && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 mb-1">LTV上位</p>
+                          {a.topPatients.map((p, j) => (
+                            <div key={j} className="flex justify-between text-xs">
+                              <span>{p.name}</span>
+                              <span className="text-gray-500">{p.ltv.toLocaleString()}円</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </button>
@@ -251,21 +310,57 @@ export default function AreaLtvPage() {
                       <th className="text-right px-3 py-2 text-xs text-gray-500">平均LTV</th>
                       <th className="text-right px-3 py-2 text-xs text-gray-500">総来院数</th>
                       <th className="text-right px-3 py-2 text-xs text-gray-500">平均来院</th>
+                      <th className="text-left px-3 py-2 text-xs text-gray-500">主要媒体</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sorted.map((a, i) => (
-                      <tr key={a.area} className="border-b hover:bg-gray-50 cursor-pointer"
-                        onClick={() => setExpandedArea(expandedArea === a.area ? null : a.area)}>
-                        <td className="px-3 py-2 text-gray-400">{i + 1}</td>
-                        <td className="px-3 py-2 font-medium">{a.area}</td>
-                        <td className="px-3 py-2 text-gray-500 text-xs">{a.prefecture}</td>
-                        <td className="px-3 py-2 text-right">{a.patientCount}人</td>
-                        <td className="px-3 py-2 text-right font-medium">{a.totalLTV.toLocaleString()}円</td>
-                        <td className="px-3 py-2 text-right">{a.avgLTV.toLocaleString()}円</td>
-                        <td className="px-3 py-2 text-right">{a.totalVisits}回</td>
-                        <td className="px-3 py-2 text-right">{a.avgVisits}回</td>
-                      </tr>
+                      <React.Fragment key={a.area}>
+                        <tr className="border-b hover:bg-gray-50 cursor-pointer"
+                          onClick={() => setExpandedArea(expandedArea === a.area ? null : a.area)}>
+                          <td className="px-3 py-2 text-gray-400">{i + 1}</td>
+                          <td className="px-3 py-2 font-medium">{a.area}</td>
+                          <td className="px-3 py-2 text-gray-500 text-xs">{a.prefecture}</td>
+                          <td className="px-3 py-2 text-right">{a.patientCount}人</td>
+                          <td className="px-3 py-2 text-right font-medium">{a.totalLTV.toLocaleString()}円</td>
+                          <td className="px-3 py-2 text-right">{a.avgLTV.toLocaleString()}円</td>
+                          <td className="px-3 py-2 text-right">{a.totalVisits}回</td>
+                          <td className="px-3 py-2 text-right">{a.avgVisits}回</td>
+                          <td className="px-3 py-2 text-xs">
+                            {a.referralBreakdown.slice(0, 2).map((r, j) => (
+                              <span key={j} className="inline-block mr-1 px-1.5 py-0.5 rounded text-[10px]" style={{ backgroundColor: `${REFERRAL_COLORS[j % REFERRAL_COLORS.length]}15`, color: REFERRAL_COLORS[j % REFERRAL_COLORS.length] }}>
+                                {r.source}({r.count})
+                              </span>
+                            ))}
+                          </td>
+                        </tr>
+                        {expandedArea === a.area && (
+                          <tr className="bg-gray-50">
+                            <td colSpan={9} className="px-6 py-3">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-[10px] text-gray-400 mb-1 font-bold">媒体別内訳</p>
+                                  {a.referralBreakdown.map((r, j) => (
+                                    <div key={j} className="flex justify-between text-xs py-0.5">
+                                      <span style={{ color: REFERRAL_COLORS[j % REFERRAL_COLORS.length] }}>{r.source}</span>
+                                      <span className="text-gray-500">{r.count}人 / LTV {r.ltv.toLocaleString()}円</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-gray-400 mb-1 font-bold">LTV上位</p>
+                                  {a.topPatients.map((p, j) => (
+                                    <div key={j} className="flex justify-between text-xs py-0.5">
+                                      <span>{p.name}</span>
+                                      <span className="text-gray-500">{p.ltv.toLocaleString()}円</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

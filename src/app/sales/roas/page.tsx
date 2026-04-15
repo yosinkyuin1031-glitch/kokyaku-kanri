@@ -147,15 +147,33 @@ export default function RoasPage() {
         })
       }
 
-      // 来院経路に基づく売上をマッピング
+      // 来院経路に基づく売上をマッピング（来店動機名で直接マッチ）
       Object.entries(channelRevenue).forEach(([source, rev]) => {
-        const channelName = mapSourceToChannel(source)
-        if (channelMap[channelName]) {
-          channelMap[channelName].revenue += rev
+        if (channelMap[source]) {
+          channelMap[source].revenue += rev
         } else {
-          channelMap[channelName] = {
-            channel: channelName, cost: 0, impressions: 0, clicks: 0,
+          channelMap[source] = {
+            channel: source, cost: 0, impressions: 0, clicks: 0,
             inquiries: 0, new_patients: 0, conversions: 0, revenue: rev,
+          }
+        }
+      })
+
+      // 自動計測: 媒体別の新規患者数を集計
+      const newPatientsBySource: Record<string, number> = {}
+      patientIds.forEach(pid => {
+        const source = patientSourceMap[pid] || 'その他'
+        if (firstVisitDate[pid] && firstVisitDate[pid] >= queryStart && firstVisitDate[pid] <= queryEnd) {
+          newPatientsBySource[source] = (newPatientsBySource[source] || 0) + 1
+        }
+      })
+      Object.entries(newPatientsBySource).forEach(([source, count]) => {
+        if (channelMap[source]) {
+          channelMap[source].new_patients = Math.max(channelMap[source].new_patients, count)
+        } else {
+          channelMap[source] = {
+            channel: source, cost: 0, impressions: 0, clicks: 0,
+            inquiries: 0, new_patients: count, conversions: 0, revenue: channelRevenue[source] || 0,
           }
         }
       })
@@ -260,7 +278,7 @@ export default function RoasPage() {
               const cpa = c.new_patients > 0 ? Math.round(c.cost / c.new_patients) : 0
               const cpo = c.conversions > 0 ? Math.round(c.cost / c.conversions) : 0
               const responseRate = c.impressions > 0 ? (c.clicks / c.impressions * 100).toFixed(1) : '0'
-              const cvRate = c.clicks > 0 ? (c.conversions / c.clicks * 100).toFixed(1) : '0'
+              const cvRate = c.clicks > 0 ? (c.new_patients / c.clicks * 100).toFixed(1) : '0'
               return (
                 <div key={c.channel} className="bg-white rounded-xl shadow-sm p-3">
                   <div className="flex justify-between items-center mb-2">
@@ -344,16 +362,3 @@ export default function RoasPage() {
   )
 }
 
-function mapSourceToChannel(source: string): string {
-  const mapping: Record<string, string> = {
-    'Google検索': 'SEO(自然検索)',
-    'Googleマップ': 'Googleマップ(MEO)',
-    'Instagram': 'Instagram広告',
-    'YouTube': 'その他',
-    'チラシ': 'チラシ',
-    '紹介': '紹介',
-    'LINE': 'LINE広告',
-    '通りがかり': 'その他',
-  }
-  return mapping[source] || source
-}

@@ -11,6 +11,14 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 export async function POST(req: NextRequest) {
   try {
+    // 認証チェック: ログインユーザーのみ利用可
+    const { createClient: createServerClient } = await import('@/lib/supabase/server')
+    const authSupabase = await createServerClient()
+    const { data: { user } } = await authSupabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: '認証が必要です' }, { status: 401 })
+    }
+
     const { text } = await req.json()
     if (!text || typeof text !== 'string') {
       return NextResponse.json({ error: 'テキストが必要です' }, { status: 400 })

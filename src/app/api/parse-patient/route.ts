@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@/lib/supabase/server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' })
 
 export async function POST(req: NextRequest) {
   try {
+    // 認証チェック: ログインユーザーのみ利用可
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: '認証が必要です' }, { status: 401 })
+    }
+
     const { text } = await req.json()
     if (!text || typeof text !== 'string') {
       return NextResponse.json({ error: 'テキストが必要です' }, { status: 400 })
