@@ -17,8 +17,8 @@ const PLAN_LABELS: Record<PlanType, string> = {
 
 const PLAN_DESCRIPTIONS: Record<PlanType, string> = {
   free: '患者数上限50人・基本機能',
-  basic: '月額¥4,980 / 患者数無制限・全機能',
-  pro: '月額¥9,800 / 複数スタッフ・API連携等（準備中）',
+  basic: '患者数無制限・全機能',
+  pro: '複数スタッフ・API連携等（準備中）',
 }
 
 export default function SettingsPage() {
