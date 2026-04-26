@@ -16,7 +16,7 @@ interface PatientWithStats extends Patient {
   calcDaysSince: number | null
 }
 
-type SortKey = 'name' | 'gender' | 'age' | 'chief_complaint' | 'referral_source' | 'line_count' | 'ltv' | 'last_visit' | 'days_since'
+type SortKey = 'name' | 'gender' | 'age' | 'birth_month' | 'chief_complaint' | 'referral_source' | 'line_count' | 'ltv' | 'last_visit' | 'days_since'
 
 function calcAge(birthDate: string | null): number | null {
   if (!birthDate) return null
@@ -156,6 +156,12 @@ export default function PatientsPage() {
         case 'age':
           cmp = (calcAge(a.birth_date) ?? -1) - (calcAge(b.birth_date) ?? -1)
           break
+        case 'birth_month': {
+          const am = a.birth_date ? new Date(a.birth_date).getMonth() * 100 + new Date(a.birth_date).getDate() : 9999
+          const bm = b.birth_date ? new Date(b.birth_date).getMonth() * 100 + new Date(b.birth_date).getDate() : 9999
+          cmp = am - bm
+          break
+        }
         case 'chief_complaint':
           cmp = (a.chief_complaint || '').localeCompare(b.chief_complaint || '', 'ja')
           break
@@ -318,6 +324,7 @@ export default function PatientsPage() {
           {([
             { key: 'name' as SortKey, label: '氏名' },
             { key: 'ltv' as SortKey, label: 'LTV' },
+            { key: 'birth_month' as SortKey, label: '誕生月' },
             { key: 'days_since' as SortKey, label: '経過' },
             { key: 'last_visit' as SortKey, label: '最終来院' },
             { key: 'referral_source' as SortKey, label: '経路' },
@@ -349,7 +356,7 @@ export default function PatientsPage() {
                     {isColVisible('name') && <SortHeader label="氏名" sortId="name" className="text-left" />}
                     {isColVisible('gender') && <SortHeader label="性別" sortId="gender" className="text-left" />}
                     {isColVisible('age') && <SortHeader label="年齢" sortId="age" className="text-right" />}
-                    {isColVisible('birth_date') && <th className="px-3 py-2.5 text-xs text-gray-500 font-semibold text-left">生年月日</th>}
+                    {isColVisible('birth_date') && <SortHeader label="生年月日(月順)" sortId="birth_month" className="text-left" />}
                     {isColVisible('chief_complaint') && <SortHeader label="症状" sortId="chief_complaint" className="text-left" />}
                     {isColVisible('referral_source') && <SortHeader label="来院経路" sortId="referral_source" className="text-left" />}
                     {isColVisible('line_count') && (
