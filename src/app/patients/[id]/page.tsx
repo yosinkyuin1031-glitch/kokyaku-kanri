@@ -345,20 +345,20 @@ export default function PatientDetailPage() {
 
         {/* 施術サマリー */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center border-t-4" style={{ borderTopColor: '#14252A' }}>
-            <p className="text-2xl font-bold" style={{ color: '#14252A' }}>{visitCount}</p>
+          <div className="bg-white rounded-xl shadow-sm p-3 text-center border-t-4 overflow-hidden" style={{ borderTopColor: '#14252A' }}>
+            <p className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight truncate" style={{ color: '#14252A' }}>{visitCount.toLocaleString()}</p>
             <p className="text-xs text-gray-500 mt-1">来院回数</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center border-t-4 border-t-blue-500">
-            <p className="text-2xl font-bold text-blue-600">{ltvValue.toLocaleString()}</p>
+          <div className="bg-white rounded-xl shadow-sm p-3 text-center border-t-4 border-t-blue-500 overflow-hidden">
+            <p className="text-base sm:text-xl font-bold text-blue-600 tabular-nums tracking-tight truncate">{ltvValue.toLocaleString()}</p>
             <p className="text-xs text-gray-500 mt-1">LTV(円)</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center border-t-4 border-t-green-500">
-            <p className="text-2xl font-bold text-green-600">{avgPrice.toLocaleString()}</p>
+          <div className="bg-white rounded-xl shadow-sm p-3 text-center border-t-4 border-t-green-500 overflow-hidden">
+            <p className="text-xl sm:text-2xl font-bold text-green-600 tabular-nums tracking-tight truncate">{avgPrice.toLocaleString()}</p>
             <p className="text-xs text-gray-500 mt-1">平均単価(円)</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center border-t-4 border-t-orange-500">
-            <p className="text-2xl font-bold text-orange-600">{daysSince !== null && daysSince !== undefined ? daysSince : '-'}</p>
+          <div className="bg-white rounded-xl shadow-sm p-3 text-center border-t-4 border-t-orange-500 overflow-hidden">
+            <p className="text-xl sm:text-2xl font-bold text-orange-600 tabular-nums tracking-tight truncate">{daysSince !== null && daysSince !== undefined ? daysSince.toLocaleString() : '-'}</p>
             <p className="text-xs text-gray-500 mt-1">最終来院(日前)</p>
           </div>
         </div>
