@@ -41,6 +41,23 @@ export default function PatientsPage() {
   const [showCsvModal, setShowCsvModal] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('name')
   const [sortAsc, setSortAsc] = useState(true)
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({})
+
+  // マスター設定を読み込み（cm_display_columns）
+  useEffect(() => {
+    const loadColumns = async () => {
+      const { data } = await supabase.from('cm_display_columns').select('column_key, is_visible').eq('clinic_id', clinicId)
+      if (data) {
+        const map: Record<string, boolean> = {}
+        data.forEach(c => { map[c.column_key] = c.is_visible })
+        setColumnVisibility(map)
+      }
+    }
+    loadColumns()
+  }, [])
+
+  // 設定が無いカラムはデフォルト表示
+  const isColVisible = (key: string) => columnVisibility[key] !== false
 
   useEffect(() => {
     const load = async () => {
@@ -74,9 +91,9 @@ export default function PatientsPage() {
         const slipRevenue = st?.revenue || 0
         const lastVisit = st?.lastVisit || p.last_visit_date || null
         const daysSince = lastVisit ? Math.floor((now - new Date(lastVisit).getTime()) / (24 * 60 * 60 * 1000)) : null
-        // cm_patients.ltv（CSSインポート値）とスリップ計算値の大きい方を使用
-        const ltv = Math.max(p.ltv || 0, slipRevenue)
-        const visitCount = (p.ltv || 0) > slipRevenue ? (p.visit_count || st?.count || 0) : (st?.count || p.visit_count || 0)
+        // CSV値優先: cm_patients.ltv があればそれを使用、なければ伝票合計
+        const ltv = (p.ltv || 0) > 0 ? (p.ltv || 0) : slipRevenue
+        const visitCount = (p.visit_count || 0) > 0 ? (p.visit_count || 0) : (st?.count || 0)
         return {
           ...p,
           calcVisitCount: visitCount,
@@ -329,45 +346,55 @@ export default function PatientsPage() {
                 <thead>
                   <tr className="bg-gray-50 border-b">
                     <th className="px-2 py-2.5 text-xs text-gray-400 font-semibold text-center w-10">#</th>
-                    <SortHeader label="氏名" sortId="name" className="text-left" />
-                    <SortHeader label="性別" sortId="gender" className="text-left" />
-                    <SortHeader label="年齢" sortId="age" className="text-right" />
-                    <SortHeader label="症状" sortId="chief_complaint" className="text-left" />
-                    <SortHeader label="来院経路" sortId="referral_source" className="text-left" />
-                    <th className="px-3 py-2.5 text-xs text-gray-500 text-right cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort('line_count')}>
-                      LINE{sortKey === 'line_count' && <span className="ml-1">{sortAsc ? '▲' : '▼'}</span>}
-                    </th>
-                    <SortHeader label="LTV" sortId="ltv" className="text-right" />
-                    <SortHeader label="最終来院" sortId="last_visit" className="text-left" />
-                    <SortHeader label="経過" sortId="days_since" className="text-right" />
+                    {isColVisible('name') && <SortHeader label="氏名" sortId="name" className="text-left" />}
+                    {isColVisible('gender') && <SortHeader label="性別" sortId="gender" className="text-left" />}
+                    {isColVisible('age') && <SortHeader label="年齢" sortId="age" className="text-right" />}
+                    {isColVisible('birth_date') && <th className="px-3 py-2.5 text-xs text-gray-500 font-semibold text-left">生年月日</th>}
+                    {isColVisible('chief_complaint') && <SortHeader label="症状" sortId="chief_complaint" className="text-left" />}
+                    {isColVisible('referral_source') && <SortHeader label="来院経路" sortId="referral_source" className="text-left" />}
+                    {isColVisible('line_count') && (
+                      <th className="px-3 py-2.5 text-xs text-gray-500 text-right cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort('line_count')}>
+                        LINE{sortKey === 'line_count' && <span className="ml-1">{sortAsc ? '▲' : '▼'}</span>}
+                      </th>
+                    )}
+                    {isColVisible('ltv') && <SortHeader label="LTV" sortId="ltv" className="text-right" />}
+                    {isColVisible('last_visit') && <SortHeader label="最終来院" sortId="last_visit" className="text-left" />}
+                    {isColVisible('days_since') && <SortHeader label="経過" sortId="days_since" className="text-right" />}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((p, idx) => (
                     <tr key={p.id} className={`border-b hover:bg-blue-50/40 cursor-pointer ${idx % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
                       <td className="px-2 py-3 text-center text-xs text-gray-400 font-medium">{idx + 1}</td>
-                      <td className="px-3 py-3">
-                        <Link href={`/patients/${p.id}`} className="text-blue-600 hover:underline font-medium">
-                          {p.name}
-                        </Link>
-                        {p.furigana && <p className="text-xs text-gray-400">{p.furigana}</p>}
-                      </td>
-                      <td className="px-3 py-3 text-xs">{p.gender}</td>
-                      <td className="px-3 py-3 text-xs text-right">{calcAge(p.birth_date) !== null ? `${calcAge(p.birth_date)}歳` : '-'}</td>
-                      <td className="px-3 py-3 text-xs text-gray-600 truncate max-w-[120px]">{p.chief_complaint || '-'}</td>
-                      <td className="px-3 py-3 text-xs">{p.referral_source || '-'}</td>
-                      <td className="px-3 py-3 text-right text-xs">{p.line_count > 0 ? `${p.line_count}回` : '-'}</td>
-                      <td className="px-3 py-3 text-right text-xs font-medium text-blue-600">
-                        {p.calcLtv > 0 ? `${p.calcLtv.toLocaleString()}円` : '-'}
-                      </td>
-                      <td className="px-3 py-3 text-xs">{p.calcLastVisit || '-'}</td>
-                      <td className="px-3 py-3 text-right text-xs">
-                        {p.calcDaysSince !== null ? (
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${p.calcDaysSince > 90 ? 'bg-red-50 text-red-600' : p.calcDaysSince > 30 ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'}`}>
-                            {p.calcDaysSince}日
-                          </span>
-                        ) : '-'}
-                      </td>
+                      {isColVisible('name') && (
+                        <td className="px-3 py-3">
+                          <Link href={`/patients/${p.id}`} className="text-blue-600 hover:underline font-medium">
+                            {p.name}
+                          </Link>
+                          {p.furigana && <p className="text-xs text-gray-400">{p.furigana}</p>}
+                        </td>
+                      )}
+                      {isColVisible('gender') && <td className="px-3 py-3 text-xs">{p.gender}</td>}
+                      {isColVisible('age') && <td className="px-3 py-3 text-xs text-right">{calcAge(p.birth_date) !== null ? `${calcAge(p.birth_date)}歳` : '-'}</td>}
+                      {isColVisible('birth_date') && <td className="px-3 py-3 text-xs">{p.birth_date || '-'}</td>}
+                      {isColVisible('chief_complaint') && <td className="px-3 py-3 text-xs text-gray-600 truncate max-w-[120px]">{p.chief_complaint || '-'}</td>}
+                      {isColVisible('referral_source') && <td className="px-3 py-3 text-xs">{p.referral_source || '-'}</td>}
+                      {isColVisible('line_count') && <td className="px-3 py-3 text-right text-xs">{p.line_count > 0 ? `${p.line_count}回` : '-'}</td>}
+                      {isColVisible('ltv') && (
+                        <td className="px-3 py-3 text-right text-xs font-medium text-blue-600">
+                          {p.calcLtv > 0 ? `${p.calcLtv.toLocaleString()}円` : '-'}
+                        </td>
+                      )}
+                      {isColVisible('last_visit') && <td className="px-3 py-3 text-xs">{p.calcLastVisit || '-'}</td>}
+                      {isColVisible('days_since') && (
+                        <td className="px-3 py-3 text-right text-xs">
+                          {p.calcDaysSince !== null ? (
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${p.calcDaysSince > 90 ? 'bg-red-50 text-red-600' : p.calcDaysSince > 30 ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'}`}>
+                              {p.calcDaysSince}日
+                            </span>
+                          ) : '-'}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -397,9 +424,10 @@ export default function PatientsPage() {
                         </span>
                       </div>
                       <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                        <span>{p.gender}</span>
-                        {calcAge(p.birth_date) !== null && <span>{calcAge(p.birth_date)}歳</span>}
-                        {p.chief_complaint && <span className="truncate">{p.chief_complaint}</span>}
+                        {isColVisible('gender') && <span>{p.gender}</span>}
+                        {isColVisible('age') && calcAge(p.birth_date) !== null && <span>{calcAge(p.birth_date)}歳</span>}
+                        {isColVisible('birth_date') && p.birth_date && <span>{p.birth_date}</span>}
+                        {isColVisible('chief_complaint') && p.chief_complaint && <span className="truncate">{p.chief_complaint}</span>}
                       </div>
                     </div>
                     <div className="text-right ml-2 shrink-0">

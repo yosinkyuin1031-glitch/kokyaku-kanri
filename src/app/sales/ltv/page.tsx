@@ -116,10 +116,10 @@ export default function LtvPage() {
         .filter(p => (p.ltv && p.ltv > 0) || (slipMap[p.id]?.revenue > 0))
         .map((p): PatientLTV => {
           const slip = slipMap[p.id]
-          // cm_patients.ltvが高い場合はそちらを使用（CSSデータが正確）
+          // CSV値優先: cm_patients.ltv があればそれを使用、なければ伝票合計
           const ltvFromSlips = slip?.revenue || 0
-          const ltv = Math.max(p.ltv || 0, ltvFromSlips)
-          const visitCount = p.visit_count || slip?.count || 0
+          const ltv = (p.ltv || 0) > 0 ? (p.ltv || 0) : ltvFromSlips
+          const visitCount = (p.visit_count || 0) > 0 ? (p.visit_count || 0) : (slip?.count || 0)
           const firstVisit = p.first_visit_date || slip?.first || ''
           const lastVisit = p.last_visit_date || slip?.last || ''
           // スリップの日付がcm_patientsより新しければ更新

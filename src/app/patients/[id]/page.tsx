@@ -106,9 +106,10 @@ export default function PatientDetailPage() {
     ? Math.floor((Date.now() - new Date(patient.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
     : null
 
-  // cm_slipsから一貫して計算（重複なし）
-  const visitCount = slips.length
-  const ltvValue = slips.reduce((sum, s) => sum + (s.total_price || 0), 0)
+  // CSV値優先: cm_patients.ltv / visit_count があればそれを使用、なければ伝票から計算
+  const slipRevenue = slips.reduce((sum, s) => sum + (s.total_price || 0), 0)
+  const ltvValue = (patient.ltv || 0) > 0 ? (patient.ltv || 0) : slipRevenue
+  const visitCount = (patient.visit_count || 0) > 0 ? (patient.visit_count || 0) : slips.length
   const avgPrice = visitCount > 0 ? Math.round(ltvValue / visitCount) : 0
 
   const firstVisit = slips.length > 0 ? slips[slips.length - 1].visit_date : patient.first_visit_date
