@@ -9,7 +9,8 @@ import { createClient } from '@/lib/supabase/client'
 import { PAYMENT_METHODS } from '@/lib/types'
 import type { Patient } from '@/lib/types'
 import { normalizeName } from '@/lib/nameMatch'
-import { getClinicId } from '@/lib/clinic'
+import { getClinicIdClient } from '@/lib/clinic'
+import { useToast } from '@/components/Toast'
 
 interface BaseMenu {
   id: string
@@ -31,8 +32,9 @@ interface OptionMenu {
 
 function VisitForm() {
   const supabase = createClient()
-  const clinicId = getClinicId()
+  const [clinicId, setClinicId] = useState<string>('')
   const router = useRouter()
+  const { showToast } = useToast()
   const searchParams = useSearchParams()
   const preselectedPatientId = searchParams.get('patient_id') || ''
 
@@ -58,6 +60,11 @@ function VisitForm() {
   })
 
   useEffect(() => {
+    getClinicIdClient().then(setClinicId)
+  }, [])
+
+  useEffect(() => {
+    if (!clinicId) return
     const load = async () => {
       const [patientsRes, baseMenusRes, optionMenusRes] = await Promise.all([
         supabase.from('cm_patients').select('*').eq('clinic_id', clinicId).eq('status', 'active').order('name'),
@@ -69,7 +76,7 @@ function VisitForm() {
       setOptionMenus(optionMenusRes.data || [])
     }
     load()
-  }, [])
+  }, [clinicId])
 
   const update = (key: string, value: string | number | string[]) => setForm(prev => ({ ...prev, [key]: value }))
 
@@ -168,11 +175,18 @@ function VisitForm() {
     if (!form.patient_id || !form.visit_date) return
     setSaving(true)
 
+    const cid = clinicId || (await getClinicIdClient())
+    if (!cid) {
+      showToast('院情報の取得に失敗しました。ページを再読み込みしてください', 'error')
+      setSaving(false)
+      return
+    }
+
     const patientName = selectedPatient?.name || ''
 
     // cm_slipsに保存（売上データ）
     const { error } = await supabase.from('cm_slips').insert({
-      clinic_id: clinicId,
+      clinic_id: cid,
       patient_id: form.patient_id,
       patient_name: patientName,
       visit_date: form.visit_date,
@@ -195,6 +209,8 @@ function VisitForm() {
       setTimeout(() => {
         router.push(`/patients/${form.patient_id}`)
       }, 800)
+    } else {
+      showToast('保存に失敗しました: ' + (error.message || '権限エラーの可能性があります'), 'error')
     }
     setSaving(false)
   }
@@ -438,11 +454,11 @@ function VisitForm() {
       {/* 保存ボタン */}
       <button
         onClick={handleSave}
-        disabled={saving || !form.patient_id || form.total_price <= 0}
+        disabled={saving || !form.patient_id || form.total_price <= 0 || !clinicId}
         className="w-full text-white py-4 rounded-xl font-bold text-base disabled:opacity-50 shadow-lg transition-all active:scale-95"
         style={{ background: '#14252A' }}
       >
-        {saving ? '保存中...' : '記録を保存する'}
+        {saving ? '保存中...' : !clinicId ? '読み込み中...' : '記録を保存する'}
       </button>
 
       {/* 入力サマリー */}

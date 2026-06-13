@@ -6,12 +6,12 @@ import Header from '@/components/Header'
 import AppShell from '@/components/AppShell'
 import { useToast } from '@/components/Toast'
 import { createClient } from '@/lib/supabase/client'
-import { getClinicId } from '@/lib/clinic'
+import { getClinicIdClient } from '@/lib/clinic'
 import { PREFECTURES } from '@/lib/types'
 
 export default function NewPatientPage() {
   const supabase = createClient()
-  const clinicId = getClinicId()
+  const [clinicId, setClinicId] = useState<string>('')
   const router = useRouter()
   const { showToast } = useToast()
   const [saving, setSaving] = useState(false)
@@ -37,6 +37,11 @@ export default function NewPatientPage() {
   const [symptoms, setSymptoms] = useState<string[]>([])
 
   useEffect(() => {
+    getClinicIdClient().then(setClinicId)
+  }, [])
+
+  useEffect(() => {
+    if (!clinicId) return
     const loadMasters = async () => {
       const [occRes, motRes, symRes] = await Promise.all([
         supabase.from('cm_occupations').select('name').eq('clinic_id', clinicId).eq('is_active', true).order('sort_order'),
@@ -48,7 +53,7 @@ export default function NewPatientPage() {
       setSymptoms((symRes.data || []).map(r => r.name))
     }
     loadMasters()
-  }, [])
+  }, [clinicId])
 
   const update = (key: string, value: string | boolean) => setForm(prev => ({ ...prev, [key]: value }))
 
@@ -136,14 +141,22 @@ export default function NewPatientPage() {
   const handleSave = async () => {
     if (!form.name) return
     setSaving(true)
+    const cid = clinicId || (await getClinicIdClient())
+    if (!cid) {
+      showToast('院情報の取得に失敗しました。ページを再読み込みしてください', 'error')
+      setSaving(false)
+      return
+    }
     const { error } = await supabase.from('cm_patients').insert({
       ...form,
       status: 'active',
-      clinic_id: clinicId,
+      clinic_id: cid,
     })
     if (!error) {
       setSaved(true)
       setTimeout(() => router.push('/patients'), 800)
+    } else {
+      showToast('保存に失敗しました: ' + (error.message || '権限エラーの可能性があります'), 'error')
     }
     setSaving(false)
   }
@@ -365,11 +378,11 @@ export default function NewPatientPage() {
 
         <button
           onClick={handleSave}
-          disabled={saving || !form.name}
+          disabled={saving || !form.name || !clinicId}
           className="w-full text-white py-3 rounded-xl font-bold text-sm disabled:opacity-50 shadow-lg transition-all active:scale-95"
           style={{ background: '#14252A' }}
         >
-          {saving ? '登録中...' : '患者を登録する'}
+          {saving ? '登録中...' : !clinicId ? '読み込み中...' : '患者を登録する'}
         </button>
       </div>
     </AppShell>

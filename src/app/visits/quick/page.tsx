@@ -8,7 +8,7 @@ import { useToast } from '@/components/Toast'
 import { createClient } from '@/lib/supabase/client'
 import { findBestMatch, findAllMatches } from '@/lib/nameMatch'
 import type { PatientCandidate } from '@/lib/nameMatch'
-import { getClinicId } from '@/lib/clinic'
+import { getClinicIdClient } from '@/lib/clinic'
 
 const PAYMENT_OPTIONS = ['現金', 'クレジットカード', '電子マネー', '銀行振込', 'その他'] as const
 
@@ -32,7 +32,7 @@ interface ParsedRecord {
 
 export default function QuickInputPage() {
   const supabase = createClient()
-  const clinicId = getClinicId()
+  const [clinicId, setClinicId] = useState<string>('')
   const router = useRouter()
   const { showToast } = useToast()
   const [inputText, setInputText] = useState('')
@@ -46,14 +46,20 @@ export default function QuickInputPage() {
   const [baseMenus, setBaseMenus] = useState<BaseMenu[]>([])
   const recognitionRef = useRef<SpeechRecognition | null>(null)
 
+  // clinic_id確定
+  useEffect(() => {
+    getClinicIdClient().then(setClinicId)
+  }, [])
+
   // マスターメニュー取得
   useEffect(() => {
+    if (!clinicId) return
     const loadMenus = async () => {
       const { data } = await supabase.from('cm_base_menus').select('id, name, price').eq('clinic_id', clinicId).eq('is_active', true).order('sort_order')
       setBaseMenus(data || [])
     }
     loadMenus()
-  }, [])
+  }, [clinicId])
 
   // 音声入力
   const toggleVoice = useCallback(() => {
@@ -117,9 +123,11 @@ export default function QuickInputPage() {
     setError('')
     setRecords([])
 
+    const cid = clinicId || (await getClinicIdClient())
+
     try {
       // 患者リストを先に取得（候補表示用）
-      const { data: pts } = await supabase.from('cm_patients').select('id, name, furigana').eq('clinic_id', clinicId).order('name')
+      const { data: pts } = await supabase.from('cm_patients').select('id, name, furigana').eq('clinic_id', cid).order('name')
       const candidates = (pts || []).map(p => ({ id: p.id, name: p.name, furigana: p.furigana }))
       setAllPatients(candidates)
 
@@ -189,8 +197,15 @@ export default function QuickInputPage() {
     if (records.length === 0) return
     setSaving(true)
 
+    const cid = clinicId || (await getClinicIdClient())
+    if (!cid) {
+      setError('院情報の取得に失敗しました。ページを再読み込みしてください')
+      setSaving(false)
+      return
+    }
+
     // patient_idがnullのレコードを保存前に再マッチング
-    const { data: allPatients } = await supabase.from('cm_patients').select('id, name, furigana').eq('clinic_id', clinicId)
+    const { data: allPatients } = await supabase.from('cm_patients').select('id, name, furigana').eq('clinic_id', cid)
     const candidates = (allPatients || []).map(p => ({ id: p.id, name: p.name, furigana: p.furigana }))
 
     const toInsert = records.map(r => {
@@ -206,7 +221,7 @@ export default function QuickInputPage() {
       }
 
       return {
-      clinic_id: clinicId,
+      clinic_id: cid,
       patient_id: patientId,
       patient_name: patientName,
       visit_date: r.visit_date,
@@ -225,7 +240,7 @@ export default function QuickInputPage() {
     const { error: insertError } = await supabase.from('cm_slips').insert(toInsert)
 
     if (insertError) {
-      setError('保存に失敗しました: ' + insertError.message)
+      setError('保存に失敗しました: ' + (insertError.message || '権限エラーの可能性があります'))
     } else {
       // 患者のupdated_atを更新
       const patientIds = [...new Set(records.map(r => r.patient_id).filter(Boolean))]
