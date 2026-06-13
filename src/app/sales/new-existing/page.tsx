@@ -47,6 +47,7 @@ export default function NewExistingPage() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
   const [openMonth, setOpenMonth] = useState<string | null>(null)
+  const [modalFilter, setModalFilter] = useState<'all' | 'new' | 'existing'>('all')
 
   const years = Array.from({ length: 6 }, (_, i) => String(new Date().getFullYear() - i))
 
@@ -379,7 +380,7 @@ export default function NewExistingPage() {
           {/* 月別内訳 - モバイル */}
           <div className="sm:hidden space-y-2">
             {monthlyBreakdown.map(d => (
-              <button key={d.label} onClick={() => setOpenMonth(d.label)}
+              <button key={d.label} onClick={() => { setOpenMonth(d.label); setModalFilter('all') }}
                 className="w-full text-left bg-white rounded-xl shadow-sm p-3 active:scale-[0.99] transition-transform">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-medium text-sm">{d.label}</span>
@@ -414,7 +415,7 @@ export default function NewExistingPage() {
               </thead>
               <tbody>
                 {monthlyBreakdown.map(d => (
-                  <tr key={d.label} onClick={() => setOpenMonth(d.label)} className="border-b hover:bg-gray-50 cursor-pointer">
+                  <tr key={d.label} onClick={() => { setOpenMonth(d.label); setModalFilter('all') }} className="border-b hover:bg-gray-50 cursor-pointer">
                     <td className="px-3 py-2 font-medium text-blue-600 underline-offset-2 hover:underline">{d.label}</td>
                     <td className="px-3 py-2 text-right text-blue-600 font-medium">{d.pureNewRevenue.toLocaleString()}円</td>
                     <td className="px-3 py-2 text-right text-blue-600 text-xs">{d.pureNewPatients}人/{d.pureNewVisits}件</td>
@@ -457,35 +458,48 @@ export default function NewExistingPage() {
       </div>
 
       {/* 患者別モーダル */}
-      {openMonth && (
+      {openMonth && (() => {
+        const filteredRows = monthPatientRows.rows.filter(r =>
+          modalFilter === 'all' ? true : modalFilter === 'new' ? r.isNew : !r.isNew
+        )
+        return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => setOpenMonth(null)}>
           <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center px-4 py-3 bg-[#14252A] text-white">
-              <h3 className="font-bold text-sm">{openMonth} の患者別売上（{monthPatientRows.rows.length}人）</h3>
+              <h3 className="font-bold text-sm">{openMonth} の患者別売上（{filteredRows.length}人）</h3>
               <button onClick={() => setOpenMonth(null)} className="text-white text-2xl leading-none">×</button>
             </div>
 
             <div className="grid grid-cols-3 gap-2 p-3 bg-gray-50 border-b">
-              <div className="bg-white rounded-lg p-2 text-center">
-                <p className="text-base font-bold" style={{ color: '#14252A' }}>{monthPatientRows.total.toLocaleString()}<span className="text-xs">円</span></p>
-                <p className="text-[10px] text-gray-500">売上合計</p>
-              </div>
-              <div className="bg-white rounded-lg p-2 text-center">
-                <p className="text-base font-bold text-blue-600">{monthPatientRows.newCount}<span className="text-xs">人</span></p>
-                <p className="text-[10px] text-gray-500">純新規</p>
-              </div>
-              <div className="bg-white rounded-lg p-2 text-center">
-                <p className="text-base font-bold text-green-600">{monthPatientRows.existingCount}<span className="text-xs">人</span></p>
-                <p className="text-[10px] text-gray-500">既存</p>
-              </div>
+              <button onClick={() => setModalFilter('all')}
+                className={`rounded-lg p-2 text-center transition-all border-2 ${modalFilter === 'all' ? 'border-[#14252A] bg-[#14252A] text-white' : 'border-transparent bg-white'}`}>
+                <p className={`text-base font-bold ${modalFilter === 'all' ? 'text-white' : ''}`} style={modalFilter !== 'all' ? { color: '#14252A' } : undefined}>
+                  {monthPatientRows.total.toLocaleString()}<span className="text-xs">円</span>
+                </p>
+                <p className={`text-[10px] ${modalFilter === 'all' ? 'text-gray-200' : 'text-gray-500'}`}>売上合計（全員）</p>
+              </button>
+              <button onClick={() => setModalFilter(modalFilter === 'new' ? 'all' : 'new')}
+                className={`rounded-lg p-2 text-center transition-all border-2 ${modalFilter === 'new' ? 'border-blue-600 bg-blue-600 text-white' : 'border-transparent bg-white'}`}>
+                <p className={`text-base font-bold ${modalFilter === 'new' ? 'text-white' : 'text-blue-600'}`}>
+                  {monthPatientRows.newCount}<span className="text-xs">人</span>
+                </p>
+                <p className={`text-[10px] ${modalFilter === 'new' ? 'text-blue-100' : 'text-gray-500'}`}>純新規</p>
+              </button>
+              <button onClick={() => setModalFilter(modalFilter === 'existing' ? 'all' : 'existing')}
+                className={`rounded-lg p-2 text-center transition-all border-2 ${modalFilter === 'existing' ? 'border-green-600 bg-green-600 text-white' : 'border-transparent bg-white'}`}>
+                <p className={`text-base font-bold ${modalFilter === 'existing' ? 'text-white' : 'text-green-600'}`}>
+                  {monthPatientRows.existingCount}<span className="text-xs">人</span>
+                </p>
+                <p className={`text-[10px] ${modalFilter === 'existing' ? 'text-green-100' : 'text-gray-500'}`}>既存</p>
+              </button>
             </div>
 
             <div className="overflow-y-auto flex-1">
-              {monthPatientRows.rows.length === 0 ? (
+              {filteredRows.length === 0 ? (
                 <p className="text-gray-400 text-sm text-center py-8">データがありません</p>
               ) : (
                 <ul className="divide-y">
-                  {monthPatientRows.rows.map(r => (
+                  {filteredRows.map(r => (
                     <li key={r.patient_id}>
                       {r.patient_id !== '__no_id__' ? (
                         <Link href={`/patients/${r.patient_id}`} className="flex justify-between items-center px-4 py-3 hover:bg-gray-50">
@@ -516,7 +530,8 @@ export default function NewExistingPage() {
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
     </AppShell>
   )
 }
