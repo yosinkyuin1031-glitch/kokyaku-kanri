@@ -9,8 +9,17 @@ import { fetchAllSlips } from '@/lib/fetchAll'
 
 interface SlipData {
   patient_id: string
+  patient_name: string
   visit_date: string
   total_price: number
+}
+
+interface PatientRow {
+  patient_id: string
+  patient_name: string
+  isNew: boolean
+  visits: number
+  revenue: number
 }
 
 interface PeriodStats {
@@ -37,13 +46,14 @@ export default function NewExistingPage() {
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()))
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [openMonth, setOpenMonth] = useState<string | null>(null)
 
   const years = Array.from({ length: 6 }, (_, i) => String(new Date().getFullYear() - i))
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      const data = await fetchAllSlips(supabase, 'patient_id, visit_date, total_price') as SlipData[]
+      const data = await fetchAllSlips(supabase, 'patient_id, patient_name, visit_date, total_price') as SlipData[]
       if (!data || data.length === 0) { setLoading(false); return }
 
       // 各患者の初回来院日
@@ -197,6 +207,60 @@ export default function NewExistingPage() {
     })
   }, [slips, firstVisitDate, period, selectedMonth, selectedYear, startDate, endDate])
 
+  // モーダル用：選択月の患者別集計（新規/既存判定は親期間ベース）
+  const monthPatientRows = useMemo((): { rows: PatientRow[]; total: number; avg: number; newCount: number; existingCount: number } => {
+    if (!openMonth) return { rows: [], total: 0, avg: 0, newCount: 0, existingCount: 0 }
+
+    // 親期間の決定
+    let rangeStart: string, rangeEnd: string
+    if (period === 'year') {
+      rangeStart = selectedYear + '-01-01'
+      rangeEnd = selectedYear + '-12-31'
+    } else if (period === 'custom') {
+      rangeStart = startDate
+      rangeEnd = endDate
+    } else if (period === 'all') {
+      const sorted = [...slips].sort((a, b) => a.visit_date.localeCompare(b.visit_date))
+      rangeStart = sorted[0]?.visit_date || '2000-01-01'
+      rangeEnd = sorted[sorted.length - 1]?.visit_date || '2099-12-31'
+    } else {
+      const r = monthRange(openMonth)
+      rangeStart = r.start
+      rangeEnd = r.end
+    }
+
+    const { start, end } = monthRange(openMonth)
+    const monthSlips = slips.filter(s => s.visit_date >= start && s.visit_date <= end)
+
+    const map = new Map<string, PatientRow>()
+    monthSlips.forEach(s => {
+      const pid = s.patient_id || '__no_id__'
+      const fvd = s.patient_id ? firstVisitDate[s.patient_id] : null
+      const isNew = !!(fvd && fvd >= rangeStart && fvd <= rangeEnd)
+      const existing = map.get(pid)
+      if (existing) {
+        existing.visits += 1
+        existing.revenue += s.total_price || 0
+      } else {
+        map.set(pid, {
+          patient_id: pid,
+          patient_name: s.patient_name || '(名前なし)',
+          isNew,
+          visits: 1,
+          revenue: s.total_price || 0,
+        })
+      }
+    })
+
+    const rows = [...map.values()].sort((a, b) => b.revenue - a.revenue)
+    const total = rows.reduce((sum, r) => sum + r.revenue, 0)
+    const avg = rows.length > 0 ? Math.round(total / rows.length) : 0
+    const newCount = rows.filter(r => r.isNew).length
+    const existingCount = rows.length - newCount
+
+    return { rows, total, avg, newCount, existingCount }
+  }, [openMonth, slips, firstVisitDate, period, selectedYear, startDate, endDate])
+
   // 構成比バー
   const Bar = ({ pureNew, existing, total }: { pureNew: number; existing: number; total: number }) => {
     if (total === 0) return null
@@ -315,7 +379,8 @@ export default function NewExistingPage() {
           {/* 月別内訳 - モバイル */}
           <div className="sm:hidden space-y-2">
             {monthlyBreakdown.map(d => (
-              <div key={d.label} className="bg-white rounded-xl shadow-sm p-3">
+              <button key={d.label} onClick={() => setOpenMonth(d.label)}
+                className="w-full text-left bg-white rounded-xl shadow-sm p-3 active:scale-[0.99] transition-transform">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-medium text-sm">{d.label}</span>
                   <span className="font-bold text-sm">{d.totalRevenue.toLocaleString()}円</span>
@@ -327,7 +392,7 @@ export default function NewExistingPage() {
                   <span className="text-blue-600">純新規 {d.pureNewRevenue.toLocaleString()}円（{d.pureNewPatients}人/{d.pureNewVisits}件）</span>
                   <span className="text-green-600">既存 {d.existingRevenue.toLocaleString()}円</span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -349,8 +414,8 @@ export default function NewExistingPage() {
               </thead>
               <tbody>
                 {monthlyBreakdown.map(d => (
-                  <tr key={d.label} className="border-b hover:bg-gray-50">
-                    <td className="px-3 py-2 font-medium">{d.label}</td>
+                  <tr key={d.label} onClick={() => setOpenMonth(d.label)} className="border-b hover:bg-gray-50 cursor-pointer">
+                    <td className="px-3 py-2 font-medium text-blue-600 underline-offset-2 hover:underline">{d.label}</td>
                     <td className="px-3 py-2 text-right text-blue-600 font-medium">{d.pureNewRevenue.toLocaleString()}円</td>
                     <td className="px-3 py-2 text-right text-blue-600 text-xs">{d.pureNewPatients}人/{d.pureNewVisits}件</td>
                     <td className="px-3 py-2 text-right text-green-600">{d.existingRevenue.toLocaleString()}円</td>
@@ -390,6 +455,68 @@ export default function NewExistingPage() {
           </div>
         ) : null}
       </div>
+
+      {/* 患者別モーダル */}
+      {openMonth && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => setOpenMonth(null)}>
+          <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center px-4 py-3 bg-[#14252A] text-white">
+              <h3 className="font-bold text-sm">{openMonth} の患者別売上（{monthPatientRows.rows.length}人）</h3>
+              <button onClick={() => setOpenMonth(null)} className="text-white text-2xl leading-none">×</button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 p-3 bg-gray-50 border-b">
+              <div className="bg-white rounded-lg p-2 text-center">
+                <p className="text-base font-bold" style={{ color: '#14252A' }}>{monthPatientRows.total.toLocaleString()}<span className="text-xs">円</span></p>
+                <p className="text-[10px] text-gray-500">売上合計</p>
+              </div>
+              <div className="bg-white rounded-lg p-2 text-center">
+                <p className="text-base font-bold text-blue-600">{monthPatientRows.newCount}<span className="text-xs">人</span></p>
+                <p className="text-[10px] text-gray-500">純新規</p>
+              </div>
+              <div className="bg-white rounded-lg p-2 text-center">
+                <p className="text-base font-bold text-green-600">{monthPatientRows.existingCount}<span className="text-xs">人</span></p>
+                <p className="text-[10px] text-gray-500">既存</p>
+              </div>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              {monthPatientRows.rows.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-8">データがありません</p>
+              ) : (
+                <ul className="divide-y">
+                  {monthPatientRows.rows.map(r => (
+                    <li key={r.patient_id}>
+                      {r.patient_id !== '__no_id__' ? (
+                        <Link href={`/patients/${r.patient_id}`} className="flex justify-between items-center px-4 py-3 hover:bg-gray-50">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm truncate">{r.patient_name}</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${r.isNew ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                {r.isNew ? '純新規' : '既存'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-gray-400 mt-0.5">{r.visits}件</p>
+                          </div>
+                          <span className="font-bold text-sm shrink-0 ml-3">{r.revenue.toLocaleString()}円</span>
+                        </Link>
+                      ) : (
+                        <div className="flex justify-between items-center px-4 py-3">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-medium text-sm text-gray-500">{r.patient_name}</span>
+                            <p className="text-[11px] text-gray-400 mt-0.5">{r.visits}件</p>
+                          </div>
+                          <span className="font-bold text-sm shrink-0 ml-3">{r.revenue.toLocaleString()}円</span>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   )
 }
